@@ -7,6 +7,12 @@
   gather_facts: true
   tasks:
 
+    - name: SAMBA_AD_SSSD | Verify the Linux computer policy was applied
+      ansible.builtin.wait_for:
+        path: /etc/motd
+        search_regex: '^Molecule Linux computer policy applied$'
+        timeout: 60
+
     - name: SAMBA_AD_SSSD | Check machine trust using the keytab
       become: true
       become_user: root

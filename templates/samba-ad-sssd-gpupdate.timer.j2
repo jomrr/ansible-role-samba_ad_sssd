@@ -1,0 +1,13 @@
+# Managed by ansible.
+# file: {{ template_destpath }}
+
+[Unit]
+Description=Refresh Active Directory computer policies
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec={{ samba_ad_sssd_gpo_refresh_interval }}
+RandomizedDelaySec={{ samba_ad_sssd_gpo_randomized_delay }}
+
+[Install]
+WantedBy=timers.target

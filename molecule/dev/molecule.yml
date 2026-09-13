@@ -34,6 +34,7 @@ provisioner:
       all:
         samba_ad_sssd_id_mapping: "rfc2307"
         samba_ad_sssd_realm: "AD.SSSD.TEST"
+        samba_ad_sssd_gpo_workgroup: "SSSDTEST"
         samba_ad_sssd_server: "dc-sssd.ad.sssd.test"
         samba_ad_sssd_join_password: "Molecule-Only-Adm1n!"
         __samba_ad_sssd_test_password: "Molecule-Only-Us3r!"

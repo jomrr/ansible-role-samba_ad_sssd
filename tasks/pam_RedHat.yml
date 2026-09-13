@@ -20,12 +20,3 @@
          (samba_ad_sssd_authselect_force | ternary(['--force'], [])) }}
   changed_when: true
   when: __samba_ad_sssd_authselect.stdout.split() | sort != __samba_ad_sssd_authselect_profile | sort
-
-- name: SAMBA_AD_SSSD | Enable home directory creation service
-  become: true
-  become_user: root
-  ansible.builtin.systemd_service:
-    name: oddjobd
-    enabled: true
-    state: started
-  when: samba_ad_sssd_mkhomedir

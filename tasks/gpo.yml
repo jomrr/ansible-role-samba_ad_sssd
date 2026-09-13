@@ -1,0 +1,70 @@
+---
+# role: samba_ad_sssd
+# file: tasks/gpo.yml
+
+- name: SAMBA_AD_SSSD | Create the Samba machine credential directory
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: /var/lib/samba/private
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: SAMBA_AD_SSSD | Configure the Samba GPO client
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+    validate: "{{ __samba_ad_sssd_gpo_smb_validate }}"
+  notify: apply computer policies
+
+- name: SAMBA_AD_SSSD | Initialize the Samba GPO machine credentials and synchronize the keytab
+  become: true
+  become_user: root
+  jomrr.samba.samba_join_member:
+    realm: "{{ samba_ad_sssd_realm | upper }}"
+    server: "{{ samba_ad_sssd_server or (samba_ad_sssd_realm | lower) }}"
+    bind_username: "{{ samba_ad_sssd_join_username }}"
+    bind_password: "{{ samba_ad_sssd_join_password | default(omit) }}"
+    force: "{{ samba_ad_sssd_force_join }}"
+    state: present
+  no_log: true
+  notify:
+    - restart sssd
+    - apply computer policies
+
+- name: SAMBA_AD_SSSD | Install validated computer policy units
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: "samba-ad-sssd-gpupdate.{{ __samba_ad_sssd_unit_type }}.j2"
+    dest: "/etc/systemd/system/samba-ad-sssd-gpupdate.{{ __samba_ad_sssd_unit_type }}"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: "{{ __samba_ad_sssd_gpo_unit_validate[__samba_ad_sssd_unit_type] }}"
+  loop:
+    - service
+    - timer
+  loop_control:
+    loop_var: __samba_ad_sssd_unit_type
+    label: "{{ __samba_ad_sssd_unit_type }}"
+  notify:
+    - reload policy units
+    - apply computer policies
+
+- name: SAMBA_AD_SSSD | Enable the native oddjob broker
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: oddjobd
+    enabled: true
+    state: started
+  when: __samba_ad_sssd_oddjob_required

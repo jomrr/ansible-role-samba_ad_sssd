@@ -6,13 +6,14 @@
 [![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/dev.yml?branch=dev&event=push&label=dev)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/dev.yml?query=branch%3Adev)
 [![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/main.yml?branch=main&event=push&label=main)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/main.yml?query=branch%3Amain)
 
-Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native
-PAM integration.
+Join Linux systems to Active Directory with SSSD, RFC2307 identities, native PAM
+integration, and Linux computer GPOs.
 
 ## Purpose
 
 Establish AD account logins on Linux servers and workstations with SSSD. The
-default reads centrally assigned RFC2307 UID/GID attributes from AD.
+default reads centrally assigned RFC2307 UID/GID attributes from AD and applies
+Linux computer GPOs.
 
 ## Scope
 
@@ -21,15 +22,20 @@ default reads centrally assigned RFC2307 UID/GID attributes from AD.
 - AD join and machine keytab through jomrr.samba.samba_join_sssd (adcli).
 - SSSD configuration, NSS identity lookup, PAM authentication and optional home
   creation.
-- Enabled and running SSSD; oddjobd on Red Hat when home creation is enabled.
+- Enabled and running SSSD and the native oddjob broker where needed for GPOs or
+  home creation.
+- Samba Linux computer GPO client, initial Samba machine credentials through
+  samba_join_member, synchronized keytab, and optional periodic refresh.
 
 ### Not Managed
 
 - Samba file shares, smbd, winbind, and file ownership migrations.
 - DC provisioning, RFC2307 attribute allocation, DNS resolver setup, time
   synchronization, and host naming.
-- Domain leave, automatic rejoin after trust failures, SSH daemon policy, or
-  sudo authorization.
+- Domain leave, automatic rejoin after trust failures, and authoring or linking
+  AD policies.
+- User GPO application at login; applications of computer GPOs depend on
+  installed Samba extensions.
 
 ## Requirements
 
@@ -43,6 +49,15 @@ default reads centrally assigned RFC2307 UID/GID attributes from AD.
   authselect_force explicitly to adopt unmanaged Red Hat files.
 - Applications must use the system PAM stack. SSH password logins also require
   suitable sshd configuration managed outside this role.
+- Samba 4.21 or later for native sync machine password to keytab support. The
+  DNS realm must resolve to domain controllers when no explicit
+  samba_ad_sssd_server is configured.
+- Set gpo_workgroup to the actual AD NetBIOS domain when it differs from the
+  first DNS realm label. This role owns smb.conf and targets SSSD clients
+  without an existing Samba server configuration.
+- Linux computer policies must be authored and linked in AD using extensions
+  supported by the installed Samba version. Keep GPO payloads separate from
+  files managed by this role to avoid configuration conflicts.
 
 ## Dependencies
 
@@ -78,15 +93,15 @@ samba_ad_sssd_join_username: Administrator
 
 Type: `str`. Required: `false`.
 
-Join password from a secret store; needed only for the initial join or forced
-rejoin.
+Join password from a secret store; needed for the initial SSSD/GPO setup or
+forced rejoin.
 
 ### `samba_ad_sssd_server`
 
 Type: `str`. Required: `false`.
 
-DC hostname for joining; empty uses adcli DNS discovery. Runtime DC selection
-uses domain_options.ad_server.
+DC hostname for initial joins; empty uses adcli discovery and the DNS realm for
+Samba. Runtime DC selection uses domain_options.ad_server.
 
 Default:
 
@@ -266,6 +281,58 @@ Default:
 samba_ad_sssd_authselect_force: false
 ```
 
+### `samba_ad_sssd_gpo_workgroup`
+
+Type: `str`. Required: `false`.
+
+AD NetBIOS domain for Samba GPO access; override when it differs from the
+realm's first label.
+
+Default:
+
+```yaml
+samba_ad_sssd_gpo_workgroup: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
+```
+
+### `samba_ad_sssd_gpo_refresh_enabled`
+
+Type: `bool`. Required: `false`.
+
+Apply computer GPOs automatically; disabling retains the client and synchronized
+machine credentials.
+
+Default:
+
+```yaml
+samba_ad_sssd_gpo_refresh_enabled: true
+```
+
+### `samba_ad_sssd_gpo_refresh_interval`
+
+Type: `str`. Required: `false`.
+
+Interval between automatic computer policy updates, using systemd time span
+syntax.
+
+Default:
+
+```yaml
+samba_ad_sssd_gpo_refresh_interval: 90min
+```
+
+### `samba_ad_sssd_gpo_randomized_delay`
+
+Type: `str`. Required: `false`.
+
+Maximum random delay added to scheduled policy updates, using systemd time span
+syntax.
+
+Default:
+
+```yaml
+samba_ad_sssd_gpo_randomized_delay: 30min
+```
+
 ## Managed Files
 
 - `/etc/krb5.conf default realm and disabled reverse/canonical hostname
@@ -274,6 +341,12 @@ samba_ad_sssd_authselect_force: false
   validation and backup).`
 - `/etc/nsswitch.conf and native PAM profile selection; PAM files are generated
   by distribution tools.`
+- `/etc/samba/smb.conf (global GPO client settings only, native validation and
+  backup).`
+- `/var/lib/samba/private/secrets.tdb (machine credentials initialized by Samba
+  and renewed by SSSD).`
+- `/etc/systemd/system/samba-ad-sssd-gpupdate.service and .timer (native
+  validation).`
 
 ## Check Mode
 
@@ -285,15 +358,20 @@ performing it.
 
 ## Service Behavior
 
-Configuration and keytab changes restart SSSD before native PAM integration.
+Configuration and keytab changes restart SSSD before native PAM integration. GPO
+setup changes apply computer policies immediately when automatic refresh is
+enabled.
 
 ### Handlers
 
 - restart sssd
+- restart oddjob
+- reload policy units
+- apply computer policies
 
 ## Security Notes
 
-- Keep join credentials in Ansible Vault or a secret store. The join task is
+- Keep join credentials in Ansible Vault or a secret store. Both join tasks are
   redacted.
 - Set config_no_log when native SSSD options contain secret values.
 - The default AD access provider enforces GPO access rules. Successful identity
@@ -319,7 +397,8 @@ Configuration and keytab changes restart SSSD before native PAM integration.
   strings. Dictionaries follow normal Ansible variable replacement semantics;
   include desired defaults when replacing a dictionary.
 - The role owns domains, services, id_provider, auth_provider, ad_domain,
-  krb5_realm, ad_hostname, both keytab paths, and the two mapping booleans.
+  krb5_realm, ad_hostname, both keytab paths,
+  ad_update_samba_machine_account_password=true, and the two mapping booleans.
   Other native options remain configurable.
 - Existing /etc/sssd/conf.d snippets are included in validation and preserved.
   They must not override the role-owned identity settings.
@@ -337,6 +416,37 @@ Configuration and keytab changes restart SSSD before native PAM integration.
   SRV responses with Misformatted DNS reply. Automatic discovery requires DNS
   responses accepted by the installed resolver. No DNS parser or security policy
   is bypassed by the role.
+- Linux computer GPOs use oddjob-gpupdate on Fedora and openSUSE, and
+  samba-gpupdate directly on AlmaLinux, Debian and Ubuntu. AlmaLinux standard
+  repositories do not provide oddjob-gpupdate. The role does not enable or start
+  smbd or winbind. On openSUSE, native GPO package dependencies include Samba
+  server binaries; no shares are configured.
+- SSSD ad_gpo_access_control evaluates login access rights independently of the
+  Samba Linux policy client. The role does not configure a PAM hook for user GPO
+  execution at login.
+- Automatic computer refresh is enabled by default, every 90 minutes with up to
+  30 minutes of random delay. The timer also schedules a boot refresh after 5
+  minutes plus the random delay. oddjob-gpupdate itself is request-driven and
+  does not provide a periodic scheduler.
+- Set samba_ad_sssd_gpo_refresh_enabled=false to stop and disable the timer and
+  suppress automatic application during Ansible runs. Client packages,
+  configuration, and machine credential synchronization remain available. Manual
+  refresh uses systemctl start samba-ad-sssd-gpupdate.service, including when
+  the timer is disabled. Disabling refresh does not undo already applied
+  policies.
+- Samba GPO retrieval requires secrets.tdb. After the SSSD join,
+  jomrr.samba.samba_join_member initializes it and synchronizes the SSSD keytab
+  through Samba's native sync machine password to keytab setting. SSSD keeps
+  both stores synchronized during subsequent password renewals through adcli
+  --add-samba-data. Initial GPO setup on an existing SSSD client therefore needs
+  the join credential again. force_join also refreshes the Samba credentials.
+- Initializing secrets.tdb with adcli update --add-samba-data alone fails with
+  some current Debian/Ubuntu package combinations. The role uses the native
+  Samba join module for initialization; normal SSSD password renewal works once
+  the Samba machine credentials exist.
+- The Samba default idmap range only satisfies the native ADS client
+  configuration. NSS and PAM continue to use SSSD and its RFC2307 or
+  autorid_compat mapping; the role does not run Winbind for identity lookup.
 
 ## Supported Platforms
 
@@ -426,8 +536,30 @@ samba_ad_sssd_domain_options:
   default_shell: /bin/bash
 ```
 
+### Computer policies with manual refresh
+
+Keep Linux GPO support while using an external scheduler or manual refresh.
+
+```yaml
+samba_ad_sssd_gpo_workgroup: EXAMPLE
+samba_ad_sssd_gpo_refresh_enabled: false
+```
+
+### Computer policy refresh interval
+
+Customize the interval and random delay for computer policy refresh.
+
+```yaml
+samba_ad_sssd_gpo_refresh_interval: 60min
+samba_ad_sssd_gpo_randomized_delay: 15min
+```
+
 ## References
 
+- [Samba Linux group policy client](https://github.com/samba-team/samba/blob/master/source4/scripting/bin/samba-gpupdate)
+- [Fedora oddjob-gpupdate](https://packages.fedoraproject.org/pkgs/oddjob-gpupdate/oddjob-gpupdate/index.html)
+- [openSUSE oddjob-gpupdate](https://github.com/openSUSE/oddjob-gpupdate)
+- [SSSD machine password renewal](https://github.com/SSSD/sssd/blob/master/src/providers/ad/ad_machine_pw_renewal.c)
 - [SSSD enumeration lifecycle](https://sssd.io/release-notes/sssd-2.12.0.html)
 - [SSSD AD provider](https://sssd.io/docs/ad/ad-provider.html)
 - [SSSD ID mapping](https://github.com/SSSD/sssd/blob/master/src/man/include/ldap_id_mapping.xml)

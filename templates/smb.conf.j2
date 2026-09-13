@@ -1,0 +1,13 @@
+# Managed by ansible.
+# file: {{ template_destpath }}
+
+[global]
+    security = ADS
+    realm = {{ samba_ad_sssd_realm | upper }}
+    workgroup = {{ samba_ad_sssd_gpo_workgroup | upper }}
+    netbios name = {{ samba_ad_sssd_host_fqdn.split('.')[0] | upper }}
+    private dir = /var/lib/samba/private
+    sync machine password to keytab = "{{ samba_ad_sssd_keytab }}:spns={{ samba_ad_sssd_host_fqdn.split('.')[0] | upper }}$@{{ samba_ad_sssd_realm | upper }},host/{{ samba_ad_sssd_host_fqdn }}@{{ samba_ad_sssd_realm | upper }}:sync_kvno:machine_password"
+    idmap config * : range = 1000000-1999999
+    usershare max shares = 0
+    load printers = no

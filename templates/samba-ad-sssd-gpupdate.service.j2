@@ -1,0 +1,13 @@
+# Managed by ansible.
+# file: {{ template_destpath }}
+
+[Unit]
+Description=Apply Active Directory computer policies for SSSD clients
+Wants=network-online.target
+After=network-online.target sssd.service{{ ' oddjobd.service' if __samba_ad_sssd_gpo_oddjob else '' }}
+Requires=sssd.service{{ ' oddjobd.service' if __samba_ad_sssd_gpo_oddjob else '' }}
+
+[Service]
+Type=oneshot
+ExecStart={{ __samba_ad_sssd_gpo_command }}
+TimeoutStartSec=5min

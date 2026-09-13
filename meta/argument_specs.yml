@@ -4,7 +4,7 @@
 
 argument_specs:
   main:
-    short_description: Join AD and configure SSSD, NSS, and PAM for domain account logins.
+    short_description: Join AD and configure SSSD, NSS, PAM, and Linux computer GPOs.
     options:
       samba_ad_sssd_realm:
         type: str
@@ -16,13 +16,13 @@ argument_specs:
         default: Administrator
       samba_ad_sssd_join_password:
         type: str
-        description: Join password from a secret store; needed only for the initial join
-          or forced rejoin.
+        description: Join password from a secret store; needed for the initial SSSD/GPO
+          setup or forced rejoin.
         no_log: true
       samba_ad_sssd_server:
         type: str
-        description: DC hostname for joining; empty uses adcli DNS discovery. Runtime DC
-          selection uses domain_options.ad_server.
+        description: DC hostname for initial joins; empty uses adcli discovery and the DNS
+          realm for Samba. Runtime DC selection uses domain_options.ad_server.
         default: ''
       samba_ad_sssd_computer_ou:
         type: str
@@ -94,3 +94,23 @@ argument_specs:
         description: Allow authselect to replace existing unmanaged PAM/NSS files using
           its native backup mechanism.
         default: false
+      samba_ad_sssd_gpo_workgroup:
+        type: str
+        description: AD NetBIOS domain for Samba GPO access; override when it differs from
+          the realm's first label.
+        default: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
+      samba_ad_sssd_gpo_refresh_enabled:
+        type: bool
+        description: Apply computer GPOs automatically; disabling retains the client and
+          synchronized machine credentials.
+        default: true
+      samba_ad_sssd_gpo_refresh_interval:
+        type: str
+        description: Interval between automatic computer policy updates, using systemd time
+          span syntax.
+        default: 90min
+      samba_ad_sssd_gpo_randomized_delay:
+        type: str
+        description: Maximum random delay added to scheduled policy updates, using systemd
+          time span syntax.
+        default: 30min

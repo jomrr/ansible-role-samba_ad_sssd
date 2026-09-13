@@ -1,7 +1,7 @@
 [project]
 name = "samba_ad_sssd"
 version = "0.0.0"
-description = "Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native PAM integration."
+description = "Join Linux systems to Active Directory with SSSD, RFC2307 identities, native PAM integration, and Linux computer GPOs."
 authors = ["Jonas Mauer"]
 license = "MIT"
 keywords = ["samba", "activedirectory", "sssd", "authentication", "rfc2307"]

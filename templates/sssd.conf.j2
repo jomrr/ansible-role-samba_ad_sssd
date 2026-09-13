@@ -12,6 +12,7 @@
     'ad_hostname': samba_ad_sssd_host_fqdn,
     'krb5_keytab': samba_ad_sssd_keytab,
     'ldap_krb5_keytab': samba_ad_sssd_keytab,
+    'ad_update_samba_machine_account_password': true,
     'ldap_id_mapping': samba_ad_sssd_id_mapping == 'autorid_compat',
     'ldap_idmap_autorid_compat': samba_ad_sssd_id_mapping == 'autorid_compat'}),
   'nss': samba_ad_sssd_nss_options,

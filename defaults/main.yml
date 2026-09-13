@@ -8,11 +8,11 @@
 # Account delegated permission to join computers to the domain.
 samba_ad_sssd_join_username: Administrator
 
-# Join password from a secret store; needed only for the initial join or forced rejoin.
+# Join password from a secret store; needed for the initial SSSD/GPO setup or forced rejoin.
 # samba_ad_sssd_join_password: '{{ vault_ad_join_password }}'
 
-# DC hostname for joining; empty uses adcli DNS discovery. Runtime DC selection uses
-# domain_options.ad_server.
+# DC hostname for initial joins; empty uses adcli discovery and the DNS realm for Samba.
+# Runtime DC selection uses domain_options.ad_server.
 samba_ad_sssd_server: ''
 
 # LDAP DN of the computer OU; empty uses the domain default.
@@ -63,3 +63,15 @@ samba_ad_sssd_authselect_features: []
 
 # Allow authselect to replace existing unmanaged PAM/NSS files using its native backup mechanism.
 samba_ad_sssd_authselect_force: false
+
+# AD NetBIOS domain for Samba GPO access; override when it differs from the realm's first label.
+samba_ad_sssd_gpo_workgroup: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
+
+# Apply computer GPOs automatically; disabling retains the client and synchronized machine credentials.
+samba_ad_sssd_gpo_refresh_enabled: true
+
+# Interval between automatic computer policy updates, using systemd time span syntax.
+samba_ad_sssd_gpo_refresh_interval: 90min
+
+# Maximum random delay added to scheduled policy updates, using systemd time span syntax.
+samba_ad_sssd_gpo_randomized_delay: 30min

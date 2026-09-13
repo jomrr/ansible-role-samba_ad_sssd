@@ -9,10 +9,13 @@
   become: true
   become_user: root
   ansible.builtin.package:
-    name: "{{ __samba_ad_sssd_packages }}"
+    name: "{{ __samba_ad_sssd_packages + __samba_ad_sssd_gpo_packages }}"
     state: present
   environment:
     DEBIAN_FRONTEND: noninteractive
+  notify:
+    - restart oddjob
+    - apply computer policies
 
 - name: SAMBA_AD_SSSD | Configure domain identity
   ansible.builtin.import_tasks: configure.yml
@@ -33,6 +36,9 @@
   no_log: true
   notify: restart sssd
 
+- name: SAMBA_AD_SSSD | Prepare Linux computer group policies
+  ansible.builtin.import_tasks: gpo.yml
+
 - name: SAMBA_AD_SSSD | Activate domain identity
   ansible.builtin.meta: flush_handlers
 
@@ -46,3 +52,11 @@
 
 - name: SAMBA_AD_SSSD | Integrate native system authentication
   ansible.builtin.include_tasks: "pam_{{ ansible_facts.os_family }}.yml"
+
+- name: SAMBA_AD_SSSD | Set automatic computer policy refresh
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: samba-ad-sssd-gpupdate.timer
+    enabled: "{{ samba_ad_sssd_gpo_refresh_enabled }}"
+    state: "{{ samba_ad_sssd_gpo_refresh_enabled | ternary('started', 'stopped') }}"

@@ -4,7 +4,7 @@
 
 galaxy_info:
   author: Jonas Mauer
-  description: Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native PAM integration.
+  description: Join Linux systems to Active Directory with SSSD, RFC2307 identities, native PAM integration, and Linux computer GPOs.
   galaxy_tags:
     - samba
     - activedirectory

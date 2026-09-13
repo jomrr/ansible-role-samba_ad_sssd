@@ -9,3 +9,28 @@
     name: sssd
     state: restarted
   listen: restart sssd
+
+- name: SAMBA_AD_SSSD | Reload computer policy units
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: reload policy units
+
+- name: SAMBA_AD_SSSD | Restart the native oddjob broker
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: oddjobd
+    state: restarted
+  when: __samba_ad_sssd_oddjob_required
+  listen: restart oddjob
+
+- name: SAMBA_AD_SSSD | Apply Linux computer policies
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: samba-ad-sssd-gpupdate.service
+    state: started
+  when: samba_ad_sssd_gpo_refresh_enabled
+  listen: apply computer policies

@@ -133,6 +133,48 @@
         port: 389
         timeout: 60
 
+    - name: SAMBA_AD_SSSD | Create a Linux computer policy
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [samba-tool, gpo, create, Molecule Linux Computer Policies, --username=Administrator]
+        stdin: '{{ samba_ad_sssd_join_password }}'
+      register: __samba_ad_sssd_test_gpo
+      changed_when: true
+      no_log: true
+
+    - name: SAMBA_AD_SSSD | Configure the policy login message
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv:
+          - samba-tool
+          - gpo
+          - manage
+          - motd
+          - set
+          - '{{ __samba_ad_sssd_test_gpo.stdout | regex_search("[{][A-Fa-f0-9-]{36}[}]") }}'
+          - Molecule Linux computer policy applied
+          - --username=Administrator
+        stdin: '{{ samba_ad_sssd_join_password }}'
+      changed_when: true
+      no_log: true
+
+    - name: SAMBA_AD_SSSD | Link the computer policy to the test domain
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv:
+          - samba-tool
+          - gpo
+          - setlink
+          - DC=ad,DC=sssd,DC=test
+          - '{{ __samba_ad_sssd_test_gpo.stdout | regex_search("[{][A-Fa-f0-9-]{36}[}]") }}'
+          - --username=Administrator
+        stdin: '{{ samba_ad_sssd_join_password }}'
+      changed_when: true
+      no_log: true
+
     - name: SAMBA_AD_SSSD | Assign a fixed primary group GID
       jomrr.samba.samba_group:
         name: Domain Users

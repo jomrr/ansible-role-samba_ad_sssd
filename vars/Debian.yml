@@ -13,3 +13,12 @@ __samba_ad_sssd_packages:
   - krb5-user
 __samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
 __samba_ad_sssd_config_group: "{{ {'Debian': 'root', 'Ubuntu': 'sssd'}[ansible_facts.distribution] }}"
+
+__samba_ad_sssd_gpo_packages: [samba-common-bin, python3-samba, samba-dsdb-modules]
+__samba_ad_sssd_gpo_oddjob: false
+__samba_ad_sssd_oddjob_required: false
+__samba_ad_sssd_gpo_command: /usr/sbin/samba-gpupdate --target=Computer
+__samba_ad_sssd_gpo_smb_validate: /usr/bin/testparm --suppress-prompt %s
+__samba_ad_sssd_gpo_unit_validate:
+  service: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.service
+  timer: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.timer

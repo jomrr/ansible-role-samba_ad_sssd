@@ -15,3 +15,16 @@ __samba_ad_sssd_config_group: sssd
 __samba_ad_sssd_authselect_profile: >-
   {{ ['sssd'] + (samba_ad_sssd_authselect_features | difference(['with-mkhomedir'])) +
      (samba_ad_sssd_mkhomedir | ternary(['with-mkhomedir'], [])) }}
+
+__samba_ad_sssd_gpo_packages: >-
+  {{ ['samba-common-tools', 'samba-gpupdate'] +
+     (__samba_ad_sssd_gpo_oddjob | ternary(['oddjob-gpupdate'], [])) }}
+__samba_ad_sssd_gpo_oddjob: "{{ ansible_facts.distribution == 'Fedora' }}"
+__samba_ad_sssd_oddjob_required: "{{ samba_ad_sssd_mkhomedir or __samba_ad_sssd_gpo_oddjob }}"
+__samba_ad_sssd_gpo_command: >-
+  {{ '/usr/bin/oddjob_request -t 300 -s ru.basealt.oddjob_gpupdate -o / -i ru.basealt.oddjob_gpupdate gpupdate_computer'
+     if __samba_ad_sssd_gpo_oddjob else '/usr/sbin/samba-gpupdate --target=Computer' }}
+__samba_ad_sssd_gpo_smb_validate: /usr/bin/testparm --suppress-prompt %s
+__samba_ad_sssd_gpo_unit_validate:
+  service: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.service
+  timer: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.timer

@@ -11,3 +11,13 @@ __samba_ad_sssd_packages:
   - krb5-client
 __samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
 __samba_ad_sssd_config_group: sssd
+
+__samba_ad_sssd_gpo_packages: [samba-client, samba-gpupdate, oddjob-gpupdate, python3-cryptography]
+__samba_ad_sssd_gpo_oddjob: true
+__samba_ad_sssd_oddjob_required: true
+__samba_ad_sssd_gpo_command: >-
+  /usr/bin/oddjob_request -t 300 -s com.redhat.oddjob_gpupdate -o / -i com.redhat.oddjob_gpupdate gpupdate_computer
+__samba_ad_sssd_gpo_smb_validate: /usr/bin/testparm --suppress-prompt %s
+__samba_ad_sssd_gpo_unit_validate:
+  service: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.service
+  timer: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.timer
