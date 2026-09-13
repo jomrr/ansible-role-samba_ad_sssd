@@ -67,6 +67,25 @@ samba_ad_sssd_authselect_force: false
 # AD NetBIOS domain for Samba GPO access; override when it differs from the realm's first label.
 samba_ad_sssd_gpo_workgroup: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
 
+# Writable Samba fallback range for BUILTIN and unmapped domains; must not overlap the AD range.
+samba_ad_sssd_idmap_default_range: 65536-69999
+
+# Samba AD backend filter for existing RFC2307 IDs; does not set SSSD min_id or max_id.
+samba_ad_sssd_idmap_range: 70000-99999
+
+# Minimum SMB dialect for Samba connections to domain controllers, including IPC; SMB3 currently aliases
+# SMB3_11, and the maximum stays negotiated.
+samba_ad_sssd_smb_min_protocol: SMB3
+
+# Samba client signing policy for SMB and IPC connections; the GPO client also enforces signing itself.
+samba_ad_sssd_smb_signing: required
+
+# Samba client encryption policy for SMB connections, including SYSVOL computer policy downloads.
+samba_ad_sssd_smb_encryption: required
+
+# SASL protection for Samba LDAP connections; seal provides signing and encryption independently of SSSD.
+samba_ad_sssd_samba_ldap_sasl_wrapping: seal
+
 # Apply computer GPOs automatically; disabling retains the client and synchronized machine credentials.
 samba_ad_sssd_gpo_refresh_enabled: true
 

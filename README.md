@@ -52,6 +52,9 @@ Linux computer GPOs.
 - Samba 4.21 or later for native sync machine password to keytab support. The
   DNS realm must resolve to domain controllers when no explicit
   samba_ad_sssd_server is configured.
+- With the security defaults, domain controllers must support SMB 3.1.1, signing
+  and encryption for SYSVOL access. Samba LDAP connections require SASL signing
+  and sealing.
 - Set gpo_workgroup to the actual AD NetBIOS domain when it differs from the
   first DNS realm label. This role owns smb.conf and targets SSSD clients
   without an existing Samba server configuration.
@@ -294,6 +297,84 @@ Default:
 samba_ad_sssd_gpo_workgroup: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
 ```
 
+### `samba_ad_sssd_idmap_default_range`
+
+Type: `str`. Required: `false`.
+
+Writable Samba fallback range for BUILTIN and unmapped domains; must not overlap
+the AD range.
+
+Default:
+
+```yaml
+samba_ad_sssd_idmap_default_range: 65536-69999
+```
+
+### `samba_ad_sssd_idmap_range`
+
+Type: `str`. Required: `false`.
+
+Samba AD backend filter for existing RFC2307 IDs; does not set SSSD min_id or
+max_id.
+
+Default:
+
+```yaml
+samba_ad_sssd_idmap_range: 70000-99999
+```
+
+### `samba_ad_sssd_smb_min_protocol`
+
+Type: `str`. Required: `false`.
+
+Minimum SMB dialect for Samba connections to domain controllers, including IPC;
+SMB3 currently aliases SMB3_11, and the maximum stays negotiated.
+
+Default:
+
+```yaml
+samba_ad_sssd_smb_min_protocol: SMB3
+```
+
+### `samba_ad_sssd_smb_signing`
+
+Type: `str`. Required: `false`.
+
+Samba client signing policy for SMB and IPC connections; the GPO client also
+enforces signing itself.
+
+Default:
+
+```yaml
+samba_ad_sssd_smb_signing: required
+```
+
+### `samba_ad_sssd_smb_encryption`
+
+Type: `str`. Required: `false`.
+
+Samba client encryption policy for SMB connections, including SYSVOL computer
+policy downloads.
+
+Default:
+
+```yaml
+samba_ad_sssd_smb_encryption: required
+```
+
+### `samba_ad_sssd_samba_ldap_sasl_wrapping`
+
+Type: `str`. Required: `false`.
+
+SASL protection for Samba LDAP connections; seal provides signing and encryption
+independently of SSSD.
+
+Default:
+
+```yaml
+samba_ad_sssd_samba_ldap_sasl_wrapping: seal
+```
+
 ### `samba_ad_sssd_gpo_refresh_enabled`
 
 Type: `bool`. Required: `false`.
@@ -372,10 +453,39 @@ enabled.
 ## Security Notes
 
 - Keep join credentials in Ansible Vault or a secret store. Both join tasks are
-  redacted.
+  redacted. Delegate computer join permissions to a dedicated account instead of
+  using a domain administrator in production.
 - Set config_no_log when native SSSD options contain secret values.
+- Samba connections use client min protocol=SMB3 (currently an alias for
+  SMB3_11), client signing=required, client ipc signing=required, client smb
+  encrypt=required and client ldap sasl wrapping=seal. The four public transport
+  variables allow explicit compatibility exceptions. IPC inherits the minimum
+  dialect; the maximum dialect and cipher selection remain negotiated by Samba
+  and the platform crypto policy. These settings protect the Samba client,
+  including computer GPO retrieval, and are not a domain-wide NTLM policy.
+- SSSD's AD provider uses Kerberos authentication and GSSAPI-protected LDAP. Its
+  access policy remains configured through domain_options, independently of
+  Samba computer policy application.
 - The default AD access provider enforces GPO access rules. Successful identity
   lookup alone does not grant login or sudo privileges.
+- Reserve centrally assigned RFC2307 UID/GID values against local accounts and
+  system IDs.
+- Machine credentials and their backups need restricted access. The role
+  protects the Samba private directory with mode 0700 and SSSD configuration
+  with mode 0640 for root and the native service group. Protect the machine
+  keytab, Samba secrets and SSSD credential cache when backing up or restoring
+  the host.
+- Computer GPOs can change privileged host settings. Restrict policy editing and
+  linking in AD; SMB encryption does not make SYSVOL a secret store. Offline
+  credential caching remains enabled for workstation logins; configure its
+  expiry through pam_options.offline_credentials_expiration according to local
+  policy.
+- File-server settings for guest shares, server signing/encryption, ACL/VFS
+  modules, recycle bins and full_audit do not apply to this login and GPO
+  client. No shares are configured and the role starts neither smbd nor winbind.
+  Authentication logging follows native PAM/SSSD facilities; collection and
+  retention, firewalls, storage encryption, DNS and time synchronization remain
+  host or site responsibilities.
 
 ## Operational Notes
 
@@ -444,9 +554,15 @@ enabled.
   some current Debian/Ubuntu package combinations. The role uses the native
   Samba join module for initialization; normal SSSD password renewal works once
   the Samba machine credentials exist.
-- The Samba default idmap range only satisfies the native ADS client
-  configuration. NSS and PAM continue to use SSSD and its RFC2307 or
-  autorid_compat mapping; the role does not run Winbind for identity lookup.
+- Samba uses a writable tdb fallback range of 65536-69999 and the ad backend
+  with schema_mode=rfc2307 and range 70000-99999 for gpo_workgroup. Override
+  these through samba_ad_sssd_idmap_default_range and samba_ad_sssd_idmap_range.
+  The ranges must be disjoint; ad cannot serve as the writable wildcard backend.
+- Samba's ad range filters existing RFC2307 IDs and does not renumber them.
+  These idmap settings belong to the Samba client configuration; NSS and PAM use
+  SSSD without Winbind. SSSD identity limits can be configured separately with
+  domain_options.min_id and max_id; its autorid_compat allocation uses
+  ldap_idmap_range_*.
 
 ## Supported Platforms
 
@@ -556,6 +672,9 @@ samba_ad_sssd_gpo_randomized_delay: 15min
 
 ## References
 
+- [Samba client security options](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html#CLIENTSMBENCRYPT)
+- [SSSD AD provider manual](https://github.com/SSSD/sssd/blob/master/src/man/sssd-ad.5.xml)
+- [Samba RFC2307 AD backend and fallback range](https://www.samba.org/samba/docs/current/man-html/idmap_ad.8.html)
 - [Samba Linux group policy client](https://github.com/samba-team/samba/blob/master/source4/scripting/bin/samba-gpupdate)
 - [Fedora oddjob-gpupdate](https://packages.fedoraproject.org/pkgs/oddjob-gpupdate/oddjob-gpupdate/index.html)
 - [openSUSE oddjob-gpupdate](https://github.com/openSUSE/oddjob-gpupdate)

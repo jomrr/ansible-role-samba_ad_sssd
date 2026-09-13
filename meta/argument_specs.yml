@@ -99,6 +99,51 @@ argument_specs:
         description: AD NetBIOS domain for Samba GPO access; override when it differs from
           the realm's first label.
         default: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
+      samba_ad_sssd_idmap_default_range:
+        type: str
+        description: Writable Samba fallback range for BUILTIN and unmapped domains; must
+          not overlap the AD range.
+        default: 65536-69999
+      samba_ad_sssd_idmap_range:
+        type: str
+        description: Samba AD backend filter for existing RFC2307 IDs; does not set SSSD
+          min_id or max_id.
+        default: 70000-99999
+      samba_ad_sssd_smb_min_protocol:
+        type: str
+        description: Minimum SMB dialect for Samba connections to domain controllers, including
+          IPC; SMB3 currently aliases SMB3_11, and the maximum stays negotiated.
+        default: SMB3
+      samba_ad_sssd_smb_signing:
+        type: str
+        description: Samba client signing policy for SMB and IPC connections; the GPO client
+          also enforces signing itself.
+        choices:
+          - default
+          - desired
+          - required
+          - disabled
+        default: required
+      samba_ad_sssd_smb_encryption:
+        type: str
+        description: Samba client encryption policy for SMB connections, including SYSVOL
+          computer policy downloads.
+        choices:
+          - default
+          - 'off'
+          - if_required
+          - desired
+          - required
+        default: required
+      samba_ad_sssd_samba_ldap_sasl_wrapping:
+        type: str
+        description: SASL protection for Samba LDAP connections; seal provides signing and
+          encryption independently of SSSD.
+        choices:
+          - plain
+          - sign
+          - seal
+        default: seal
       samba_ad_sssd_gpo_refresh_enabled:
         type: bool
         description: Apply computer GPOs automatically; disabling retains the client and

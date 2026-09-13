@@ -6,8 +6,17 @@
     realm = {{ samba_ad_sssd_realm | upper }}
     workgroup = {{ samba_ad_sssd_gpo_workgroup | upper }}
     netbios name = {{ samba_ad_sssd_host_fqdn.split('.')[0] | upper }}
+    client min protocol = {{ samba_ad_sssd_smb_min_protocol }}
+    client signing = {{ samba_ad_sssd_smb_signing }}
+    client ipc signing = {{ samba_ad_sssd_smb_signing }}
+    client smb encrypt = {{ samba_ad_sssd_smb_encryption }}
+    client ldap sasl wrapping = {{ samba_ad_sssd_samba_ldap_sasl_wrapping }}
     private dir = /var/lib/samba/private
     sync machine password to keytab = "{{ samba_ad_sssd_keytab }}:spns={{ samba_ad_sssd_host_fqdn.split('.')[0] | upper }}$@{{ samba_ad_sssd_realm | upper }},host/{{ samba_ad_sssd_host_fqdn }}@{{ samba_ad_sssd_realm | upper }}:sync_kvno:machine_password"
-    idmap config * : range = 1000000-1999999
+    idmap config * : backend = tdb
+    idmap config * : range = {{ samba_ad_sssd_idmap_default_range }}
+    idmap config {{ samba_ad_sssd_gpo_workgroup | upper }} : backend = ad
+    idmap config {{ samba_ad_sssd_gpo_workgroup | upper }} : range = {{ samba_ad_sssd_idmap_range }}
+    idmap config {{ samba_ad_sssd_gpo_workgroup | upper }} : schema_mode = rfc2307
     usershare max shares = 0
     load printers = no
