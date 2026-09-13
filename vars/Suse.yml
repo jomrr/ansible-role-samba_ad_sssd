@@ -1,0 +1,13 @@
+---
+# role: samba_ad_sssd
+# file: vars/Suse.yml
+
+__samba_ad_sssd_packages:
+  - adcli
+  - sssd
+  - sssd-ad
+  - sssd-tools
+  - pam-config
+  - krb5-client
+__samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
+__samba_ad_sssd_config_group: sssd

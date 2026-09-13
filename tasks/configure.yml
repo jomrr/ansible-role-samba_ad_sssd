@@ -1,0 +1,54 @@
+---
+# role: samba_ad_sssd
+# file: tasks/configure.yml
+
+- name: SAMBA_AD_SSSD | Configure Kerberos realm and hostname handling
+  become: true
+  become_user: root
+  community.general.ini_file:
+    path: /etc/krb5.conf
+    section: libdefaults
+    option: "{{ __samba_ad_sssd_krb5_option.key }}"
+    value: "{{ __samba_ad_sssd_krb5_option.value }}"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  loop:
+    - {key: default_realm, value: "{{ samba_ad_sssd_realm | upper }}"}
+    - {key: rdns, value: 'false'}
+    - {key: dns_canonicalize_hostname, value: 'false'}
+  loop_control:
+    loop_var: __samba_ad_sssd_krb5_option
+    label: "{{ __samba_ad_sssd_krb5_option.key }}"
+  notify: restart sssd
+
+- name: SAMBA_AD_SSSD | Create SSSD configuration directories
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: "{{ __samba_ad_sssd_directory }}"
+    state: directory
+    owner: root
+    group: "{{ __samba_ad_sssd_config_group }}"
+    mode: '0750'
+  loop:
+    - /etc/sssd
+    - /etc/sssd/conf.d
+  loop_control:
+    loop_var: __samba_ad_sssd_directory
+    label: "{{ __samba_ad_sssd_directory }}"
+
+- name: SAMBA_AD_SSSD | Configure and validate SSSD
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+    owner: root
+    group: "{{ __samba_ad_sssd_config_group }}"
+    mode: '0640'
+    backup: true
+    validate: "{{ __samba_ad_sssd_validate }}"
+  no_log: "{{ samba_ad_sssd_config_no_log }}"
+  notify: restart sssd

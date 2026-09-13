@@ -1,0 +1,23 @@
+---
+# role: samba_ad_sssd
+# file: tasks/pam_suse_module.yml
+
+- name: SAMBA_AD_SSSD | Query the native PAM module
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv: [pam-config, --query, "--{{ __samba_ad_sssd_pam_module.name }}"]
+  register: __samba_ad_sssd_pam_query
+  changed_when: false
+  check_mode: false
+
+- name: SAMBA_AD_SSSD | Apply the native PAM module state
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv:
+      - pam-config
+      - "{{ __samba_ad_sssd_pam_module.enabled | ternary('--add', '--delete') }}"
+      - "--{{ __samba_ad_sssd_pam_module.name }}"
+  changed_when: true
+  when: (__samba_ad_sssd_pam_query.stdout | length > 0) != (__samba_ad_sssd_pam_module.enabled | bool)

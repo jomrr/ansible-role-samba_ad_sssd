@@ -1,0 +1,26 @@
+# Managed by ansible.
+# file: {{ template_destpath }}
+{% set __samba_ad_sssd_sections = {
+  'sssd': samba_ad_sssd_sssd_options | combine({
+    'domains': samba_ad_sssd_realm | lower,
+    'services': 'nss, pam'}),
+  'domain/' ~ (samba_ad_sssd_realm | lower): samba_ad_sssd_domain_options | combine({
+    'id_provider': 'ad',
+    'auth_provider': 'ad',
+    'ad_domain': samba_ad_sssd_realm | lower,
+    'krb5_realm': samba_ad_sssd_realm | upper,
+    'ad_hostname': samba_ad_sssd_host_fqdn,
+    'krb5_keytab': samba_ad_sssd_keytab,
+    'ldap_krb5_keytab': samba_ad_sssd_keytab,
+    'ldap_id_mapping': samba_ad_sssd_id_mapping == 'autorid_compat',
+    'ldap_idmap_autorid_compat': samba_ad_sssd_id_mapping == 'autorid_compat'}),
+  'nss': samba_ad_sssd_nss_options,
+  'pam': samba_ad_sssd_pam_options
+} %}
+{% for __samba_ad_sssd_section, __samba_ad_sssd_options in __samba_ad_sssd_sections.items() %}
+
+[{{ __samba_ad_sssd_section }}]
+{% for __samba_ad_sssd_key, __samba_ad_sssd_value in __samba_ad_sssd_options | dictsort %}
+{{ __samba_ad_sssd_key }} = {{ (__samba_ad_sssd_value | string | lower) if __samba_ad_sssd_value is boolean else __samba_ad_sssd_value }}
+{% endfor %}
+{% endfor %}

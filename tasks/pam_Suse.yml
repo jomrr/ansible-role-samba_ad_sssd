@@ -1,0 +1,29 @@
+---
+# role: samba_ad_sssd
+# file: tasks/pam_Suse.yml
+
+- name: SAMBA_AD_SSSD | Configure native PAM modules
+  ansible.builtin.include_tasks: pam_suse_module.yml
+  loop:
+    - name: sss
+      enabled: true
+    - name: mkhomedir
+      enabled: "{{ samba_ad_sssd_mkhomedir }}"
+  loop_control:
+    loop_var: __samba_ad_sssd_pam_module
+    label: "{{ __samba_ad_sssd_pam_module.name }}"
+
+- name: SAMBA_AD_SSSD | Initialize the NSS configuration from the distribution
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    src: /usr/etc/nsswitch.conf
+    dest: /etc/nsswitch.conf
+    remote_src: true
+    force: false
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: SAMBA_AD_SSSD | Enable SSSD identity lookups
+  ansible.builtin.import_tasks: nss.yml

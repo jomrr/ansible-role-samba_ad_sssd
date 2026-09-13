@@ -1,0 +1,48 @@
+---
+# role: samba_ad_sssd
+# file: tasks/main.yml
+
+- name: SAMBA_AD_SSSD | Load platform settings
+  ansible.builtin.include_vars: "{{ ansible_facts.os_family }}.yml"
+
+- name: SAMBA_AD_SSSD | Install AD login components
+  become: true
+  become_user: root
+  ansible.builtin.package:
+    name: "{{ __samba_ad_sssd_packages }}"
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: SAMBA_AD_SSSD | Configure domain identity
+  ansible.builtin.import_tasks: configure.yml
+
+- name: SAMBA_AD_SSSD | Join the Active Directory domain
+  become: true
+  become_user: root
+  jomrr.samba.samba_join_sssd:
+    realm: "{{ samba_ad_sssd_realm | upper }}"
+    bind_username: "{{ samba_ad_sssd_join_username }}"
+    bind_password: "{{ samba_ad_sssd_join_password | default(omit) }}"
+    server: "{{ samba_ad_sssd_server }}"
+    computer_ou: "{{ samba_ad_sssd_computer_ou }}"
+    host_fqdn: "{{ samba_ad_sssd_host_fqdn }}"
+    keytab: "{{ samba_ad_sssd_keytab }}"
+    force: "{{ samba_ad_sssd_force_join }}"
+    state: present
+  no_log: true
+  notify: restart sssd
+
+- name: SAMBA_AD_SSSD | Activate domain identity
+  ansible.builtin.meta: flush_handlers
+
+- name: SAMBA_AD_SSSD | Enable and start SSSD
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: sssd
+    enabled: true
+    state: started
+
+- name: SAMBA_AD_SSSD | Integrate native system authentication
+  ansible.builtin.include_tasks: "pam_{{ ansible_facts.os_family }}.yml"

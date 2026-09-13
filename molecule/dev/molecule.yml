@@ -1,0 +1,179 @@
+---
+# role: samba_ad_sssd
+# file: molecule/dev/molecule.yml
+
+dependency:
+  name: "galaxy"
+  options:
+    requirements-file: "${MOLECULE_PROJECT_DIRECTORY}/collections.yml"
+    role-file: "${MOLECULE_PROJECT_DIRECTORY}/collections.yml"
+driver:
+  name: "podman"
+provisioner:
+  name: "ansible"
+  config_options:
+    defaults:
+      forks: 8
+      interpreter_python: "auto_silent"
+      allow_world_readable_tmpfiles: true
+      callbacks_enabled: "ansible.builtin.default"
+      callback_result_format: "yaml"
+      remote_tmp: "/tmp/.ansible/tmp"
+    ssh_connection:
+      pipelining: true
+  log: true
+  playbooks:
+    converge: "../resources/playbooks/converge.yml"
+    verify: "../resources/playbooks/verify.yml"
+    prepare: "../resources/playbooks/prepare.yml"
+    side_effect: "../resources/playbooks/side_effect.yml"
+  connection_options:
+    ansible_user: "molecule"
+  inventory:
+    group_vars:
+      all:
+        samba_ad_sssd_id_mapping: "rfc2307"
+        samba_ad_sssd_realm: "AD.SSSD.TEST"
+        samba_ad_sssd_server: "dc-sssd.ad.sssd.test"
+        samba_ad_sssd_join_password: "Molecule-Only-Adm1n!"
+        __samba_ad_sssd_test_password: "Molecule-Only-Us3r!"
+        samba_ad_sssd_host_fqdn: "{{ inventory_hostname }}.ad.sssd.test"
+        samba_ad_sssd_authselect_force: true
+        samba_ad_sssd_domain_options:
+          access_provider: "ad"
+          ad_gpo_access_control: "enforcing"
+          enumerate: false
+          cache_credentials: true
+          use_fully_qualified_names: true
+          fallback_homedir: "/home/%d/%u"
+          default_shell: "/bin/bash"
+          ad_server: "dc-sssd.ad.sssd.test"
+          krb5_server: "dc-sssd.ad.sssd.test"
+    host_vars:
+      sas-autorid:
+        samba_ad_sssd_id_mapping: "autorid_compat"
+        samba_ad_sssd_domain_options:
+          access_provider: "ad"
+          ad_gpo_access_control: "enforcing"
+          enumerate: false
+          use_fully_qualified_names: true
+          fallback_homedir: "/home/%d/%u"
+          default_shell: "/bin/bash"
+          ldap_idmap_range_min: 10000
+          ldap_idmap_range_max: 60000
+          ldap_idmap_range_size: 10000
+          ad_server: "dc-sssd.ad.sssd.test"
+          krb5_server: "dc-sssd.ad.sssd.test"
+verifier:
+  name: "ansible"
+scenario:
+  test_sequence:
+    - "dependency"
+    - "destroy"
+    - "syntax"
+    - "create"
+    - "prepare"
+    - "converge"
+    - "idempotence"
+    - "check"
+    - "verify"
+    - "side_effect"
+    - "destroy"
+  name: "dev"
+platforms:
+  - name: "sas-dc"
+    hostname: "dc-sssd"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_dc"
+  - name: "sas-alma"
+    hostname: "sas-alma"
+    image: "docker.io/jomrr/molecule-almalinux:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"
+  - name: "sas-debian"
+    hostname: "sas-debian"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"
+  - name: "sas-fedora"
+    hostname: "sas-fedora"
+    image: "docker.io/jomrr/molecule-fedora:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"
+  - name: "sas-leap"
+    hostname: "sas-leap"
+    image: "docker.io/jomrr/molecule-opensuse-leap:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"
+  - name: "sas-suse"
+    hostname: "sas-suse"
+    image: "docker.io/jomrr/molecule-opensuse-tumbleweed:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"
+  - name: "sas-ubuntu"
+    hostname: "sas-ubuntu"
+    image: "docker.io/jomrr/molecule-ubuntu:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"
+  - name: "sas-autorid"
+    hostname: "sas-autorid"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    privileged: true
+    network: "sas-${MOLECULE_SCENARIO_NAME}"
+    extra_opts:
+      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
+    groups:
+      - "samba_ad_sssd_members"

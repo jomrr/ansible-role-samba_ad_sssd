@@ -1,0 +1,96 @@
+---
+# role: samba_ad_sssd
+# file: meta/argument_specs.yml
+
+argument_specs:
+  main:
+    short_description: Join AD and configure SSSD, NSS, and PAM for domain account logins.
+    options:
+      samba_ad_sssd_realm:
+        type: str
+        description: AD DNS domain and Kerberos realm; must remain stable after joining.
+        required: true
+      samba_ad_sssd_join_username:
+        type: str
+        description: Account delegated permission to join computers to the domain.
+        default: Administrator
+      samba_ad_sssd_join_password:
+        type: str
+        description: Join password from a secret store; needed only for the initial join
+          or forced rejoin.
+        no_log: true
+      samba_ad_sssd_server:
+        type: str
+        description: DC hostname for joining; empty uses adcli DNS discovery. Runtime DC
+          selection uses domain_options.ad_server.
+        default: ''
+      samba_ad_sssd_computer_ou:
+        type: str
+        description: LDAP DN of the computer OU; empty uses the domain default.
+        default: ''
+      samba_ad_sssd_host_fqdn:
+        type: str
+        description: Stable fully qualified machine hostname shared by adcli and SSSD.
+        default: '{{ ansible_facts.fqdn | lower }}'
+      samba_ad_sssd_keytab:
+        type: path
+        description: Machine keytab used by adcli and SSSD; its parent directory must exist.
+        default: /etc/krb5.keytab
+      samba_ad_sssd_force_join:
+        type: bool
+        description: Rejoin on every run; enable only for deliberate machine account repair.
+        default: false
+      samba_ad_sssd_id_mapping:
+        type: str
+        description: rfc2307 reads centrally assigned POSIX IDs; autorid_compat enables
+          SSSD algorithmic mapping with autorid compatibility.
+        choices:
+          - rfc2307
+          - autorid_compat
+        default: rfc2307
+      samba_ad_sssd_sssd_options:
+        type: dict
+        description: Native [sssd] options, for example domain_resolution_order. Domains
+          and services are role-owned.
+        default: {}
+      samba_ad_sssd_domain_options:
+        type: dict
+        description: Native AD domain options with scalar values and comma-separated strings
+          for lists. Role-owned provider, identity, keytab and mapping settings take precedence.
+        default:
+          access_provider: ad
+          ad_gpo_access_control: enforcing
+          enumerate: false
+          cache_credentials: true
+          use_fully_qualified_names: true
+          fallback_homedir: /home/%d/%u
+          default_shell: /bin/bash
+      samba_ad_sssd_nss_options:
+        type: dict
+        description: Native [nss] responder options with scalar values, for example filter_users
+          or filter_groups.
+        default: {}
+      samba_ad_sssd_pam_options:
+        type: dict
+        description: Native [pam] responder options with scalar values, for example offline_credentials_expiration.
+        default: {}
+      samba_ad_sssd_config_no_log:
+        type: bool
+        description: Redact template output and diffs when native SSSD options contain secrets.
+        default: false
+      samba_ad_sssd_mkhomedir:
+        type: bool
+        description: Enable native PAM home directory creation on login; disabling removes
+          the managed PAM feature and preserves homes.
+        default: true
+      samba_ad_sssd_authselect_features:
+        type: list
+        description: Additional features of the Red Hat sssd profile; with-mkhomedir is
+          controlled by mkhomedir.
+        elements: str
+        default: []
+      samba_ad_sssd_authselect_force:
+        type: bool
+        description: Allow authselect to replace existing unmanaged PAM/NSS files using
+          its native backup mechanism.
+        default: false

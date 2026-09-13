@@ -1,0 +1,18 @@
+---
+# role: samba_ad_sssd
+# file: meta/main.yml
+
+galaxy_info:
+  author: Jonas Mauer
+  description: Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native PAM integration.
+  galaxy_tags:
+    - samba
+    - activedirectory
+    - sssd
+    - authentication
+    - rfc2307
+  issue_tracker_url: https://github.com/jomrr/ansible-role-samba_ad_sssd/issues
+  license: MIT
+  min_ansible_version: "2.20"
+  namespace: jomrr
+  role_name: samba_ad_sssd

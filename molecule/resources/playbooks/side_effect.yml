@@ -1,0 +1,66 @@
+---
+# role: samba_ad_sssd
+# file: molecule/resources/playbooks/side_effect.yml
+
+- name: SAMBA_AD_SSSD | Verify native option and home policy updates
+  hosts: samba_ad_sssd_members
+  gather_facts: true
+  tasks:
+
+    - name: SAMBA_AD_SSSD | Exercise commented NSS sources before restoring domain lookups
+      become: true
+      become_user: root
+      ansible.builtin.replace:
+        path: /etc/nsswitch.conf
+        regexp: '^(passwd|group):.*$'
+        replace: '\1: files # sss will be restored by the role'
+      when: ansible_facts.os_family in ['Debian', 'Suse']
+
+    - name: SAMBA_AD_SSSD | Enable short names and disable home creation
+      ansible.builtin.include_role:
+        name: '{{ lookup(''ansible.builtin.env'', ''MOLECULE_PROJECT_DIRECTORY'') }}'
+      vars:
+        samba_ad_sssd_mkhomedir: false
+        samba_ad_sssd_domain_options:
+          ad_server: dc-sssd.ad.sssd.test
+          krb5_server: dc-sssd.ad.sssd.test
+          access_provider: ad
+          ad_gpo_access_control: enforcing
+          use_fully_qualified_names: false
+          enumerate: false
+          ldap_idmap_range_min: 10000
+          ldap_idmap_range_max: 60000
+          ldap_idmap_range_size: 10000
+        samba_ad_sssd_sssd_options:
+          domain_resolution_order: ad.sssd.test
+        samba_ad_sssd_pam_options:
+          offline_credentials_expiration: 7
+
+    - name: SAMBA_AD_SSSD | Resolve a short domain username
+      ansible.builtin.getent:
+        database: passwd
+        key: writer
+
+    - name: SAMBA_AD_SSSD | Open a session without automatic home creation
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [sssctl, user-checks, --action=open, --service=login, reader]
+      environment:
+        LC_ALL: C
+      register: __samba_ad_sssd_nohome_session
+      changed_when: false
+      failed_when: >-
+        __samba_ad_sssd_nohome_session.rc != 0 or
+        'pam_open_session: Success' not in __samba_ad_sssd_nohome_session.stderr
+
+    - name: SAMBA_AD_SSSD | Inspect the disabled home creation result
+      become: true
+      become_user: root
+      ansible.builtin.stat:
+        path: /home/reader
+      register: __samba_ad_sssd_nohome
+
+    - name: SAMBA_AD_SSSD | Verify no home was created after disabling the feature
+      ansible.builtin.assert:
+        that: not __samba_ad_sssd_nohome.stat.exists

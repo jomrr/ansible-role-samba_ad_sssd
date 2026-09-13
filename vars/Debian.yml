@@ -1,0 +1,15 @@
+---
+# role: samba_ad_sssd
+# file: vars/Debian.yml
+
+__samba_ad_sssd_packages:
+  - adcli
+  - sssd-ad
+  - sssd-tools
+  - libnss-sss
+  - libpam-sss
+  - libpam-modules
+  - libpam-runtime
+  - krb5-user
+__samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
+__samba_ad_sssd_config_group: "{{ {'Debian': 'root', 'Ubuntu': 'sssd'}[ansible_facts.distribution] }}"

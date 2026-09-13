@@ -1,0 +1,12 @@
+---
+# role: samba_ad_sssd
+# file: tasks/nss.yml
+
+- name: SAMBA_AD_SSSD | Add SSSD to passwd and group lookup sources
+  become: true
+  become_user: root
+  ansible.builtin.replace:
+    path: /etc/nsswitch.conf
+    regexp: '^(passwd|group):[ \t]*(?![^#\n]*\bsss\b)([^#\n]*?)([ \t]*(?:#.*)?)$'
+    replace: '\1: \2 sss\3'
+    backup: true

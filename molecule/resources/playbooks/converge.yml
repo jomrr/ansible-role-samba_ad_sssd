@@ -1,0 +1,9 @@
+---
+# role: samba_ad_sssd
+# file: molecule/resources/playbooks/converge.yml
+
+- name: SAMBA_AD_SSSD | Configure member logins
+  hosts: samba_ad_sssd_members
+  gather_facts: true
+  roles:
+    - role: '{{ lookup(''ansible.builtin.env'', ''MOLECULE_PROJECT_DIRECTORY'') }}'

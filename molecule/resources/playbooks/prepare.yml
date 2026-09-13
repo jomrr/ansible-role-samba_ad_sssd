@@ -1,0 +1,200 @@
+---
+# role: samba_ad_sssd
+# file: molecule/resources/playbooks/prepare.yml
+
+- name: SAMBA_AD_SSSD | Prepare test hosts
+  hosts: all
+  gather_facts: true
+  tasks:
+
+    - name: SAMBA_AD_SSSD | Refresh Debian package metadata
+      become: true
+      become_user: root
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts.pkg_mgr == 'apt'
+
+- name: SAMBA_AD_SSSD | Prepare the existing RFC2307 domain
+  hosts: samba_ad_sssd_dc
+  gather_facts: true
+  module_defaults:
+    group/jomrr.samba.all:
+      server: dc-sssd.ad.sssd.test
+      realm: AD.SSSD.TEST
+      bind_username: Administrator
+      bind_password: '{{ samba_ad_sssd_join_password }}'
+  tasks:
+
+    - name: SAMBA_AD_SSSD | Install domain controller fixture packages
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name:
+          - samba-ad-dc
+          - samba-ad-provision
+          - samba-dsdb-modules
+          - samba-vfs-modules
+          - python3-samba
+          - winbind
+        state: present
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: SAMBA_AD_SSSD | Fit the DC fixture IDs inside the rootless namespace
+      become: true
+      become_user: root
+      ansible.builtin.replace:
+        path: /usr/share/samba/setup/idmap_init.ldif
+        regexp: '{{ __samba_ad_sssd_bound.regexp }}'
+        replace: '{{ __samba_ad_sssd_bound.value }}'
+      loop:
+        - regexp: '^lowerBound: .*'
+          value: 'lowerBound: 10000'
+        - regexp: '^upperBound: .*'
+          value: 'upperBound: 60000'
+      loop_control:
+        loop_var: __samba_ad_sssd_bound
+        label: '{{ __samba_ad_sssd_bound.value }}'
+
+    - name: SAMBA_AD_SSSD | Resolve the DC fixture FQDN
+      become: true
+      become_user: root
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: ^\s*{{ ansible_facts.default_ipv4.address | regex_escape }}\s+
+        line: '{{ ansible_facts.default_ipv4.address }} dc-sssd.ad.sssd.test dc-sssd'
+        unsafe_writes: true
+
+    - name: SAMBA_AD_SSSD | Remove the distribution sample configuration before provisioning
+      become: true
+      become_user: root
+      ansible.builtin.file:
+        path: /etc/samba/smb.conf
+        state: absent
+
+    - name: SAMBA_AD_SSSD | Provision the test domain
+      become: true
+      become_user: root
+      jomrr.samba.samba_provision:
+        realm: AD.SSSD.TEST
+        domain: SSSDTEST
+        hostname: dc-sssd
+        use_rfc2307: true
+        admin_password: '{{ samba_ad_sssd_join_password }}'
+      no_log: true
+
+    - name: SAMBA_AD_SSSD | Forward external DNS queries to the container network
+      become: true
+      become_user: root
+      ansible.builtin.lineinfile:
+        path: /etc/samba/smb.conf
+        insertafter: ^\[global\]
+        regexp: ^\s*dns forwarder\s*=
+        line: '    dns forwarder = {{ ansible_facts.dns.nameservers | first }}'
+
+    - name: SAMBA_AD_SSSD | Stop standalone services on the DC fixture
+      become: true
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: '{{ __samba_ad_sssd_service }}'
+        state: stopped
+        enabled: false
+        masked: true
+      loop:
+        - smbd
+        - nmbd
+        - winbind
+      loop_control:
+        loop_var: __samba_ad_sssd_service
+        label: '{{ __samba_ad_sssd_service }}'
+
+    - name: SAMBA_AD_SSSD | Start the fixture domain controller
+      become: true
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: samba-ad-dc
+        enabled: true
+        masked: false
+        state: started
+
+    - name: SAMBA_AD_SSSD | Resolve the test realm through AD DNS
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 127.0.0.1
+          search ad.sssd.test
+        mode: '0644'
+        unsafe_writes: true
+
+    - name: SAMBA_AD_SSSD | Wait for directory authentication
+      ansible.builtin.wait_for:
+        port: 389
+        timeout: 60
+
+    - name: SAMBA_AD_SSSD | Assign a fixed primary group GID
+      jomrr.samba.samba_group:
+        name: Domain Users
+        gid_number: 21000
+
+    - name: SAMBA_AD_SSSD | Create test accounts with fixed RFC2307 identities
+      jomrr.samba.samba_user:
+        username: '{{ __samba_ad_sssd_account.name }}'
+        password: '{{ __samba_ad_sssd_test_password }}'
+        uid_number: '{{ __samba_ad_sssd_account.uid }}'
+        gid_number: 21000
+        unix_home_directory: /home/{{ __samba_ad_sssd_account.name }}
+        login_shell: /bin/bash
+      loop:
+
+        - name: writer
+          uid: 21001
+
+        - name: reader
+          uid: 21002
+      loop_control:
+        loop_var: __samba_ad_sssd_account
+        label: '{{ __samba_ad_sssd_account.name }}'
+      no_log: true
+
+- name: SAMBA_AD_SSSD | Prepare member prerequisites
+  hosts: samba_ad_sssd_members
+  gather_facts: true
+  tasks:
+
+    - name: SAMBA_AD_SSSD | Install the native login service in the minimal Fedora image
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name: util-linux
+        state: present
+      when: ansible_facts.distribution == 'Fedora'
+
+    - name: SAMBA_AD_SSSD | Complete boot for native login tests
+      become: true
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: systemd-user-sessions
+        masked: false
+        state: started
+
+    - name: SAMBA_AD_SSSD | Use the fixture domain DNS
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver {{ hostvars['sas-dc'].ansible_facts.default_ipv4.address }}
+          search ad.sssd.test
+        mode: '0644'
+        unsafe_writes: true
+
+    - name: SAMBA_AD_SSSD | Resolve each member FQDN locally
+      become: true
+      become_user: root
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: ^\s*{{ ansible_facts.default_ipv4.address | regex_escape }}\s+
+        line: '{{ ansible_facts.default_ipv4.address }} {{ samba_ad_sssd_host_fqdn }} {{ inventory_hostname }}'
+        unsafe_writes: true

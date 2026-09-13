@@ -1,0 +1,30 @@
+---
+# role: samba_ad_sssd
+# file: tasks/pam_Debian.yml
+
+- name: SAMBA_AD_SSSD | Read the native PAM profile selection
+  become: true
+  become_user: root
+  ansible.builtin.debconf:
+    name: libpam-runtime
+  register: __samba_ad_sssd_pam_selection
+
+- name: SAMBA_AD_SSSD | Select SSSD and home directory PAM profiles
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv:
+      - pam-auth-update
+      - --enable
+      - sss
+      - "{{ samba_ad_sssd_mkhomedir | ternary('--enable', '--disable') }}"
+      - mkhomedir
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  changed_when: true
+  when: >-
+    'sss' not in __samba_ad_sssd_pam_selection.current['libpam-runtime/profiles'].split(', ') or
+    ('mkhomedir' in __samba_ad_sssd_pam_selection.current['libpam-runtime/profiles'].split(', ')) != samba_ad_sssd_mkhomedir
+
+- name: SAMBA_AD_SSSD | Enable SSSD identity lookups
+  ansible.builtin.import_tasks: nss.yml
