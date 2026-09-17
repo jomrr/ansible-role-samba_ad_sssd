@@ -3,8 +3,8 @@
 ![GitHub](https://img.shields.io/github/license/jomrr/ansible-role-samba_ad_sssd)
 ![GitHub last commit](https://img.shields.io/github/last-commit/jomrr/ansible-role-samba_ad_sssd)
 ![GitHub issues](https://img.shields.io/github/issues-raw/jomrr/ansible-role-samba_ad_sssd)
-[![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/dev.yml?branch=dev&event=push&label=dev)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/dev.yml?query=branch%3Adev)
-[![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/main.yml?branch=main&event=push&label=main)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/main.yml?query=branch%3Amain)
+[![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/dev.yml?branch=dev&label=dev)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/dev.yml?query=branch%3Adev)
+[![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/main.yml?branch=main&label=main)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/main.yml?query=branch%3Amain)
 
 Join Linux systems to Active Directory with SSSD, RFC2307 identities, native PAM
 integration, and Linux computer GPOs.
