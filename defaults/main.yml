@@ -21,7 +21,7 @@ samba_ad_sssd_computer_ou: ''
 # Stable fully qualified machine hostname shared by adcli and SSSD.
 samba_ad_sssd_host_fqdn: '{{ ansible_facts.fqdn | lower }}'
 
-# Machine keytab used by adcli and SSSD; its parent directory must exist.
+# Machine keytab used by adcli, SSSD and the system Kerberos configuration; its parent directory must exist.
 samba_ad_sssd_keytab: /etc/krb5.keytab
 
 # Rejoin on every run; enable only for deliberate machine account repair.

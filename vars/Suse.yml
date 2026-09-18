@@ -11,6 +11,7 @@ __samba_ad_sssd_packages:
   - krb5-client
 __samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
 __samba_ad_sssd_config_group: sssd
+__samba_ad_sssd_krb5_ccache: 'KEYRING:persistent:%{uid}'
 
 __samba_ad_sssd_gpo_packages: [samba-client, samba-gpupdate, oddjob-gpupdate, python3-cryptography]
 __samba_ad_sssd_gpo_oddjob: true

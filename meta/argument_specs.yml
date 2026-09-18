@@ -34,7 +34,8 @@ argument_specs:
         default: '{{ ansible_facts.fqdn | lower }}'
       samba_ad_sssd_keytab:
         type: path
-        description: Machine keytab used by adcli and SSSD; its parent directory must exist.
+        description: Machine keytab used by adcli, SSSD and the system Kerberos configuration;
+          its parent directory must exist.
         default: /etc/krb5.keytab
       samba_ad_sssd_force_join:
         type: bool

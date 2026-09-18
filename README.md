@@ -20,6 +20,8 @@ Linux computer GPOs.
 ### Managed
 
 - AD join and machine keytab through jomrr.samba.samba_join_sssd (adcli).
+- System Kerberos configuration with the AD default realm, DNS KDC discovery,
+  domain mapping and machine keytab path.
 - SSSD configuration, NSS identity lookup, PAM authentication and optional home
   creation.
 - Enabled and running SSSD and the native oddjob broker where needed for GPOs or
@@ -140,7 +142,8 @@ samba_ad_sssd_host_fqdn: '{{ ansible_facts.fqdn | lower }}'
 
 Type: `path`. Required: `false`.
 
-Machine keytab used by adcli and SSSD; its parent directory must exist.
+Machine keytab used by adcli, SSSD and the system Kerberos configuration; its
+parent directory must exist.
 
 Default:
 
@@ -416,8 +419,8 @@ samba_ad_sssd_gpo_randomized_delay: 30min
 
 ## Managed Files
 
-- `/etc/krb5.conf default realm and disabled reverse/canonical hostname
-  rewriting; other settings are preserved.`
+- `/etc/krb5.conf (complete file, mode 0644, root-owned, previous version backed
+  up), with /etc/krb5.conf.d snippets retained.`
 - `/etc/sssd/sssd.conf (0640, root-owned, native SSSD service group, native
   validation and backup).`
 - `/etc/nsswitch.conf and native PAM profile selection; PAM files are generated
@@ -439,9 +442,9 @@ performing it.
 
 ## Service Behavior
 
-Configuration and keytab changes restart SSSD before native PAM integration. GPO
-setup changes apply computer policies immediately when automatic refresh is
-enabled.
+Configuration and keytab changes restart SSSD before native PAM integration.
+Kerberos and GPO setup changes apply computer policies immediately when
+automatic refresh is enabled.
 
 ### Handlers
 
@@ -489,6 +492,17 @@ enabled.
 
 ## Operational Notes
 
+- The role writes /etc/krb5.conf before joining. It sets the default realm and
+  keytab from samba_ad_sssd_realm and samba_ad_sssd_keytab, discovers KDCs
+  through DNS and maps the AD DNS domain and its subdomains to the realm. DNS
+  realm lookup and reverse/canonical hostname rewriting are disabled. Existing
+  settings in the main file are replaced; retain site-specific configuration in
+  /etc/krb5.conf.d without conflicting with these settings.
+- Kerberos credential caches use FILE on Debian/Ubuntu and persistent KEYRING on
+  Red Hat/openSUSE, matching samba_ad_member. Native Kerberos libraries and
+  distribution crypto-policy snippets determine encryption types. There is no
+  standalone Kerberos candidate-file validator in the installed client tools;
+  functional joins and authentication are covered by the integration scenario.
 - samba_ad_sssd_id_mapping=rfc2307 sets id_provider=ad and
   ldap_id_mapping=false. autorid_compat sets ldap_id_mapping=true and
   ldap_idmap_autorid_compat=true.
@@ -672,6 +686,7 @@ samba_ad_sssd_gpo_randomized_delay: 15min
 
 ## References
 
+- [MIT Kerberos configuration](https://web.mit.edu/kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html)
 - [Samba client security options](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html#CLIENTSMBENCRYPT)
 - [SSSD AD provider manual](https://github.com/SSSD/sssd/blob/master/src/man/sssd-ad.5.xml)
 - [Samba RFC2307 AD backend and fallback range](https://www.samba.org/samba/docs/current/man-html/idmap_ad.8.html)

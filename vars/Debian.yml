@@ -13,6 +13,7 @@ __samba_ad_sssd_packages:
   - krb5-user
 __samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
 __samba_ad_sssd_config_group: "{{ {'Debian': 'root', 'Ubuntu': 'sssd'}[ansible_facts.distribution] }}"
+__samba_ad_sssd_krb5_ccache: 'FILE:/tmp/krb5cc_%{uid}'
 
 __samba_ad_sssd_gpo_packages: [samba-common-bin, python3-samba, samba-dsdb-modules]
 __samba_ad_sssd_gpo_oddjob: false
