@@ -27,7 +27,8 @@ Linux computer GPOs.
 - Enabled and running SSSD and the native oddjob broker where needed for GPOs or
   home creation.
 - Samba Linux computer GPO client, initial Samba machine credentials through
-  samba_join_member, synchronized keytab, and optional periodic refresh.
+  samba_join_member, synchronized keytab, and policy application after package,
+  configuration or join changes.
 
 ### Not Managed
 
@@ -382,39 +383,13 @@ samba_ad_sssd_samba_ldap_sasl_wrapping: seal
 
 Type: `bool`. Required: `false`.
 
-Apply computer GPOs automatically; disabling retains the client and synchronized
-machine credentials.
+Apply computer GPOs after package, configuration or join changes; disabling
+retains the configured client.
 
 Default:
 
 ```yaml
 samba_ad_sssd_gpo_refresh_enabled: true
-```
-
-### `samba_ad_sssd_gpo_refresh_interval`
-
-Type: `str`. Required: `false`.
-
-Interval between automatic computer policy updates, using systemd time span
-syntax.
-
-Default:
-
-```yaml
-samba_ad_sssd_gpo_refresh_interval: 90min
-```
-
-### `samba_ad_sssd_gpo_randomized_delay`
-
-Type: `str`. Required: `false`.
-
-Maximum random delay added to scheduled policy updates, using systemd time span
-syntax.
-
-Default:
-
-```yaml
-samba_ad_sssd_gpo_randomized_delay: 30min
 ```
 
 ## Managed Files
@@ -429,8 +404,7 @@ samba_ad_sssd_gpo_randomized_delay: 30min
   backup).`
 - `/var/lib/samba/private/secrets.tdb (machine credentials initialized by Samba
   and renewed by SSSD).`
-- `/etc/systemd/system/samba-ad-sssd-gpupdate.service and .timer (native
-  validation).`
+- `/etc/systemd/system/samba-ad-sssd-gpupdate.service (native validation).`
 
 ## Check Mode
 
@@ -548,16 +522,13 @@ automatic refresh is enabled.
 - SSSD ad_gpo_access_control evaluates login access rights independently of the
   Samba Linux policy client. The role does not configure a PAM hook for user GPO
   execution at login.
-- Automatic computer refresh is enabled by default, every 90 minutes with up to
-  30 minutes of random delay. The timer also schedules a boot refresh after 5
-  minutes plus the random delay. oddjob-gpupdate itself is request-driven and
-  does not provide a periodic scheduler.
-- Set samba_ad_sssd_gpo_refresh_enabled=false to stop and disable the timer and
-  suppress automatic application during Ansible runs. Client packages,
-  configuration, and machine credential synchronization remain available. Manual
-  refresh uses systemctl start samba-ad-sssd-gpupdate.service, including when
-  the timer is disabled. Disabling refresh does not undo already applied
-  policies.
+- Computer policies are applied after relevant package, configuration or join
+  changes by default.
+- Set samba_ad_sssd_gpo_refresh_enabled=false to suppress automatic application
+  during Ansible runs. Client packages, configuration, and machine credential
+  synchronization remain available. Manual refresh uses systemctl start
+  samba-ad-sssd-gpupdate.service. Disabling refresh does not undo already
+  applied policies.
 - Samba GPO retrieval requires secrets.tdb. After the SSSD join,
   jomrr.samba.samba_join_member initializes it and synchronizes the SSSD keytab
   through Samba's native sync machine password to keytab setting. SSSD keeps
@@ -668,20 +639,11 @@ samba_ad_sssd_domain_options:
 
 ### Computer policies with manual refresh
 
-Keep Linux GPO support while using an external scheduler or manual refresh.
+Keep Linux GPO support while applying computer policies manually.
 
 ```yaml
 samba_ad_sssd_gpo_workgroup: EXAMPLE
 samba_ad_sssd_gpo_refresh_enabled: false
-```
-
-### Computer policy refresh interval
-
-Customize the interval and random delay for computer policy refresh.
-
-```yaml
-samba_ad_sssd_gpo_refresh_interval: 60min
-samba_ad_sssd_gpo_randomized_delay: 15min
 ```
 
 ## References

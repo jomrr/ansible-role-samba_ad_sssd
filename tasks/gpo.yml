@@ -40,22 +40,16 @@
     - restart sssd
     - apply computer policies
 
-- name: SAMBA_AD_SSSD | Install validated computer policy units
+- name: SAMBA_AD_SSSD | Install the validated computer policy service
   become: true
   become_user: root
   ansible.builtin.template:
-    src: "samba-ad-sssd-gpupdate.{{ __samba_ad_sssd_unit_type }}.j2"
-    dest: "/etc/systemd/system/samba-ad-sssd-gpupdate.{{ __samba_ad_sssd_unit_type }}"
+    src: samba-ad-sssd-gpupdate.service.j2
+    dest: /etc/systemd/system/samba-ad-sssd-gpupdate.service
     owner: root
     group: root
     mode: '0644'
-    validate: "{{ __samba_ad_sssd_gpo_unit_validate[__samba_ad_sssd_unit_type] }}"
-  loop:
-    - service
-    - timer
-  loop_control:
-    loop_var: __samba_ad_sssd_unit_type
-    label: "{{ __samba_ad_sssd_unit_type }}"
+    validate: "{{ __samba_ad_sssd_gpo_service_validate }}"
   notify:
     - reload policy units
     - apply computer policies

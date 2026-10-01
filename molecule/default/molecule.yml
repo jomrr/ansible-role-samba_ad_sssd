@@ -15,17 +15,15 @@ provisioner:
     defaults:
       forks: 8
       interpreter_python: "auto_silent"
-      allow_world_readable_tmpfiles: true
       callbacks_enabled: "ansible.builtin.default"
       callback_result_format: "yaml"
-      remote_tmp: "/tmp/.ansible/tmp"
     ssh_connection:
       pipelining: true
   log: true
   playbooks:
+    prepare: "../resources/playbooks/prepare.yml"
     converge: "../resources/playbooks/converge.yml"
     verify: "../resources/playbooks/verify.yml"
-    prepare: "../resources/playbooks/prepare.yml"
     side_effect: "../resources/playbooks/side_effect.yml"
   connection_options:
     ansible_user: "molecule"

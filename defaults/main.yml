@@ -86,11 +86,5 @@ samba_ad_sssd_smb_encryption: required
 # SASL protection for Samba LDAP connections; seal provides signing and encryption independently of SSSD.
 samba_ad_sssd_samba_ldap_sasl_wrapping: seal
 
-# Apply computer GPOs automatically; disabling retains the client and synchronized machine credentials.
+# Apply computer GPOs after package, configuration or join changes; disabling retains the configured client.
 samba_ad_sssd_gpo_refresh_enabled: true
-
-# Interval between automatic computer policy updates, using systemd time span syntax.
-samba_ad_sssd_gpo_refresh_interval: 90min
-
-# Maximum random delay added to scheduled policy updates, using systemd time span syntax.
-samba_ad_sssd_gpo_randomized_delay: 30min

@@ -20,6 +20,4 @@ __samba_ad_sssd_gpo_oddjob: false
 __samba_ad_sssd_oddjob_required: false
 __samba_ad_sssd_gpo_command: /usr/sbin/samba-gpupdate --target=Computer
 __samba_ad_sssd_gpo_smb_validate: /usr/bin/testparm --suppress-prompt %s
-__samba_ad_sssd_gpo_unit_validate:
-  service: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.service
-  timer: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.timer
+__samba_ad_sssd_gpo_service_validate: /usr/bin/systemd-analyze verify %s:samba-ad-sssd-gpupdate.service

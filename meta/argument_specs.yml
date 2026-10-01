@@ -147,16 +147,6 @@ argument_specs:
         default: seal
       samba_ad_sssd_gpo_refresh_enabled:
         type: bool
-        description: Apply computer GPOs automatically; disabling retains the client and
-          synchronized machine credentials.
+        description: Apply computer GPOs after package, configuration or join changes; disabling
+          retains the configured client.
         default: true
-      samba_ad_sssd_gpo_refresh_interval:
-        type: str
-        description: Interval between automatic computer policy updates, using systemd time
-          span syntax.
-        default: 90min
-      samba_ad_sssd_gpo_randomized_delay:
-        type: str
-        description: Maximum random delay added to scheduled policy updates, using systemd
-          time span syntax.
-        default: 30min
