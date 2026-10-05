@@ -21,15 +21,14 @@ GPO login access rules through SSSD.
 
 - AD join and machine keytab through adcli, with a local klist check for a
   machine principal in the configured realm.
+- System Kerberos through jomrr.krb5 and native SSSD PAM/NSS integration through
+  jomrr.pam.
 - SSSD configuration, including its NSS and PAM responder options and AD access
   policy.
 - Enabled and running SSSD.
 
 ### Not Managed
 
-- System Kerberos configuration; run jomrr.krb5 before this role.
-- System PAM stacks, passwd/group NSS selection and home creation; managed by
-  jomrr.pam.
 - LDAP and IPA identity providers. Only the AD provider is supported.
 - Samba file shares, smbd, winbind, and file ownership migrations.
 - DC provisioning, RFC2307 attribute allocation, DNS resolver setup, time
@@ -41,10 +40,10 @@ GPO login access rules through SSSD.
 
 ## Requirements
 
-- Run jomrr.krb5 before this role with krb5_realm matching sssd_realm and DNS
-  KDC discovery enabled.
-- Run jomrr.pam with pam_provider=sssd before this role to select native PAM and
-  NSS integration.
+- Galaxy installs jomrr.krb5 and jomrr.pam through meta/requirements.yml when
+  installing this role. For a Git checkout, run ansible-galaxy role install -r
+  requirements.yml. This role invokes both dependencies before configuring SSSD
+  and joining the domain.
 - A stable host FQDN, working AD DNS discovery, synchronized time, and network
   reachability to the domain.
 - For RFC2307: users need uidNumber and gidNumber, groups need gidNumber;
@@ -247,6 +246,8 @@ sssd_config_no_log: false
 
 ## Managed Files
 
+- `/etc/krb5.conf and /etc/krb5.conf.d through jomrr.krb5.`
+- `Native PAM profiles and passwd/group NSS sources through jomrr.pam.`
 - `/etc/sssd/sssd.conf (0640, root-owned, native SSSD service group, native
   validation and backup).`
 
@@ -291,6 +292,9 @@ SSSD configuration and keytab changes restart SSSD.
 
 ## Operational Notes
 
+- The role passes sssd_realm to jomrr.krb5 as krb5_realm and selects
+  pam_provider=sssd for jomrr.pam. Other `krb5_` and `pam_` options can be set
+  in inventory. Kerberos uses DNS KDC discovery by default.
 - jomrr.krb5 owns /etc/krb5.conf and /etc/krb5.conf.d. This role sets
   krb5_keytab, ldap_krb5_keytab and adcli's host-keytab explicitly from
   sssd_keytab, independently of the library default keytab. Setting
@@ -368,10 +372,6 @@ Use centrally assigned IDs and create homes at login.
   hosts: linux_clients
   gather_facts: true
   roles:
-    - role: jomrr.krb5
-      krb5_realm: AD.EXAMPLE.COM
-    - role: jomrr.pam
-      pam_provider: sssd
     - role: jomrr.sssd
       sssd_realm: AD.EXAMPLE.COM
       sssd_join_password: "{{ vault_ad_join_password }}"

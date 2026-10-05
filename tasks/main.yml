@@ -11,14 +11,24 @@
       paths:
         - "{{ role_path }}/vars"
 
+- name: SSSD | Configure system Kerberos
+  ansible.builtin.include_role:
+    name: jomrr.krb5
+  vars:
+    krb5_realm: "{{ sssd_realm }}"
+
+- name: SSSD | Configure native SSSD authentication
+  ansible.builtin.include_role:
+    name: jomrr.pam
+  vars:
+    pam_provider: sssd
+
 - name: SSSD | Install AD login components
   become: true
   become_user: root
   ansible.builtin.package:
     name: "{{ __sssd_packages }}"
     state: present
-  environment:
-    DEBIAN_FRONTEND: noninteractive
 
 - name: SSSD | Configure domain identity
   ansible.builtin.import_tasks: configure.yml

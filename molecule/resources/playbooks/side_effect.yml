@@ -16,13 +16,6 @@
         replace: '\1: files # sss will be restored by the role'
       when: ansible_facts.os_family in ['Debian', 'Suse']
 
-    - name: SSSD | Restore native lookup sources and disable home creation
-      ansible.builtin.include_role:
-        name: jomrr.pam
-      vars:
-        pam_provider: sssd
-        pam_mkhomedir: false
-
     - name: SSSD | Read the keytab before a forced rejoin
       become: true
       become_user: root
@@ -31,10 +24,11 @@
         checksum_algorithm: sha256
       register: __sssd_keytab_before_rejoin
 
-    - name: SSSD | Force a rejoin and enable short domain names
+    - name: SSSD | Rejoin with short names, restore native lookups and disable home creation
       ansible.builtin.include_role:
         name: '{{ lookup(''ansible.builtin.env'', ''MOLECULE_PROJECT_DIRECTORY'') }}'
       vars:
+        pam_mkhomedir: false
         sssd_force_join: true
         sssd_domain_options:
           ad_server: dc-sssd.ad.sssd.test

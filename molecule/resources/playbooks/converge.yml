@@ -5,17 +5,5 @@
 - name: SSSD | Configure member logins
   hosts: sssd_members
   gather_facts: true
-  pre_tasks:
-    - name: SSSD | Configure system Kerberos before joining
-      ansible.builtin.include_role:
-        name: jomrr.krb5
-      vars:
-        krb5_realm: '{{ sssd_realm }}'
-
-    - name: SSSD | Select native SSSD authentication
-      ansible.builtin.include_role:
-        name: jomrr.pam
-      vars:
-        pam_provider: sssd
   roles:
     - role: '{{ lookup(''ansible.builtin.env'', ''MOLECULE_PROJECT_DIRECTORY'') }}'
