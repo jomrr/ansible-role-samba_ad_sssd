@@ -1,7 +1,7 @@
 [project]
 name = "samba_ad_sssd"
 version = "0.0.0"
-description = "Join Linux systems to Active Directory with SSSD, RFC2307 identities, native PAM integration, and Linux computer GPOs."
+description = "Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native PAM integration."
 requires-python = ">=3.12"
 authors = [
   { name = "Jonas Mauer" },

@@ -6,14 +6,14 @@
 [![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/dev.yml?branch=dev&label=dev)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/dev.yml?query=branch%3Adev)
 [![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/main.yml?branch=main&label=main)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/main.yml?query=branch%3Amain)
 
-Join Linux systems to Active Directory with SSSD, RFC2307 identities, native PAM
-integration, and Linux computer GPOs.
+Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native
+PAM integration.
 
 ## Purpose
 
 Establish AD account logins on Linux servers and workstations with SSSD. The
-default reads centrally assigned RFC2307 UID/GID attributes from AD and applies
-Linux computer GPOs.
+default reads centrally assigned RFC2307 UID/GID attributes from AD and enforces
+GPO login access rules through SSSD.
 
 ## Scope
 
@@ -24,11 +24,8 @@ Linux computer GPOs.
   domain mapping and machine keytab path.
 - SSSD configuration, NSS identity lookup, PAM authentication and optional home
   creation.
-- Enabled and running SSSD and the native oddjob broker where needed for GPOs or
-  home creation.
-- Samba Linux computer GPO client, initial Samba machine credentials through
-  samba_join_member, synchronized keytab, and policy application after package,
-  configuration or join changes.
+- Enabled and running SSSD, with oddjob on Red Hat systems for automatic home
+  creation.
 
 ### Not Managed
 
@@ -37,8 +34,8 @@ Linux computer GPOs.
   synchronization, and host naming.
 - Domain leave, automatic rejoin after trust failures, and authoring or linking
   AD policies.
-- User GPO application at login; applications of computer GPOs depend on
-  installed Samba extensions.
+- Samba gpupdate client configuration and application of Linux computer or user
+  policies.
 
 ## Requirements
 
@@ -52,18 +49,6 @@ Linux computer GPOs.
   authselect_force explicitly to adopt unmanaged Red Hat files.
 - Applications must use the system PAM stack. SSH password logins also require
   suitable sshd configuration managed outside this role.
-- Samba 4.21 or later for native sync machine password to keytab support. The
-  DNS realm must resolve to domain controllers when no explicit
-  samba_ad_sssd_server is configured.
-- With the security defaults, domain controllers must support SMB 3.1.1, signing
-  and encryption for SYSVOL access. Samba LDAP connections require SASL signing
-  and sealing.
-- Set gpo_workgroup to the actual AD NetBIOS domain when it differs from the
-  first DNS realm label. This role owns smb.conf and targets SSSD clients
-  without an existing Samba server configuration.
-- Linux computer policies must be authored and linked in AD using extensions
-  supported by the installed Samba version. Keep GPO payloads separate from
-  files managed by this role to avoid configuration conflicts.
 
 ## Dependencies
 
@@ -99,15 +84,14 @@ samba_ad_sssd_join_username: Administrator
 
 Type: `str`. Required: `false`.
 
-Join password from a secret store; needed for the initial SSSD/GPO setup or
-forced rejoin.
+Join password from a secret store; needed for the initial join or forced rejoin.
 
 ### `samba_ad_sssd_server`
 
 Type: `str`. Required: `false`.
 
-DC hostname for initial joins; empty uses adcli discovery and the DNS realm for
-Samba. Runtime DC selection uses domain_options.ad_server.
+DC hostname for the initial join; empty uses adcli discovery. Runtime DC
+selection uses domain_options.ad_server.
 
 Default:
 
@@ -272,7 +256,9 @@ mkhomedir.
 Default:
 
 ```yaml
-samba_ad_sssd_authselect_features: []
+samba_ad_sssd_authselect_features:
+  - without-nullok
+  - with-faillock
 ```
 
 ### `samba_ad_sssd_authselect_force`
@@ -288,110 +274,6 @@ Default:
 samba_ad_sssd_authselect_force: false
 ```
 
-### `samba_ad_sssd_gpo_workgroup`
-
-Type: `str`. Required: `false`.
-
-AD NetBIOS domain for Samba GPO access; override when it differs from the
-realm's first label.
-
-Default:
-
-```yaml
-samba_ad_sssd_gpo_workgroup: '{{ samba_ad_sssd_realm.split(".")[0] | upper }}'
-```
-
-### `samba_ad_sssd_idmap_default_range`
-
-Type: `str`. Required: `false`.
-
-Writable Samba fallback range for BUILTIN and unmapped domains; must not overlap
-the AD range.
-
-Default:
-
-```yaml
-samba_ad_sssd_idmap_default_range: 65536-69999
-```
-
-### `samba_ad_sssd_idmap_range`
-
-Type: `str`. Required: `false`.
-
-Samba AD backend filter for existing RFC2307 IDs; does not set SSSD min_id or
-max_id.
-
-Default:
-
-```yaml
-samba_ad_sssd_idmap_range: 70000-99999
-```
-
-### `samba_ad_sssd_smb_min_protocol`
-
-Type: `str`. Required: `false`.
-
-Minimum SMB dialect for Samba connections to domain controllers, including IPC;
-SMB3 currently aliases SMB3_11, and the maximum stays negotiated.
-
-Default:
-
-```yaml
-samba_ad_sssd_smb_min_protocol: SMB3
-```
-
-### `samba_ad_sssd_smb_signing`
-
-Type: `str`. Required: `false`.
-
-Samba client signing policy for SMB and IPC connections; the GPO client also
-enforces signing itself.
-
-Default:
-
-```yaml
-samba_ad_sssd_smb_signing: required
-```
-
-### `samba_ad_sssd_smb_encryption`
-
-Type: `str`. Required: `false`.
-
-Samba client encryption policy for SMB connections, including SYSVOL computer
-policy downloads.
-
-Default:
-
-```yaml
-samba_ad_sssd_smb_encryption: required
-```
-
-### `samba_ad_sssd_samba_ldap_sasl_wrapping`
-
-Type: `str`. Required: `false`.
-
-SASL protection for Samba LDAP connections; seal provides signing and encryption
-independently of SSSD.
-
-Default:
-
-```yaml
-samba_ad_sssd_samba_ldap_sasl_wrapping: seal
-```
-
-### `samba_ad_sssd_gpo_refresh_enabled`
-
-Type: `bool`. Required: `false`.
-
-Apply computer GPOs after package, configuration or join changes; disabling
-retains the configured client.
-
-Default:
-
-```yaml
-samba_ad_sssd_gpo_refresh_enabled: true
-```
-
 ## Managed Files
 
 - `/etc/krb5.conf (complete file, mode 0644, root-owned, previous version backed
@@ -400,11 +282,6 @@ samba_ad_sssd_gpo_refresh_enabled: true
   validation and backup).`
 - `/etc/nsswitch.conf and native PAM profile selection; PAM files are generated
   by distribution tools.`
-- `/etc/samba/smb.conf (global GPO client settings only, native validation and
-  backup).`
-- `/var/lib/samba/private/secrets.tdb (machine credentials initialized by Samba
-  and renewed by SSSD).`
-- `/etc/systemd/system/samba-ad-sssd-gpupdate.service (native validation).`
 
 ## Check Mode
 
@@ -417,50 +294,37 @@ performing it.
 ## Service Behavior
 
 Configuration and keytab changes restart SSSD before native PAM integration.
-Kerberos and GPO setup changes apply computer policies immediately when
-automatic refresh is enabled.
 
 ### Handlers
 
 - restart sssd
-- restart oddjob
-- reload policy units
-- apply computer policies
 
 ## Security Notes
 
-- Keep join credentials in Ansible Vault or a secret store. Both join tasks are
+- Keep join credentials in Ansible Vault or a secret store. The join task is
   redacted. Delegate computer join permissions to a dedicated account instead of
   using a domain administrator in production.
 - Set config_no_log when native SSSD options contain secret values.
-- Samba connections use client min protocol=SMB3 (currently an alias for
-  SMB3_11), client signing=required, client ipc signing=required, client smb
-  encrypt=required and client ldap sasl wrapping=seal. The four public transport
-  variables allow explicit compatibility exceptions. IPC inherits the minimum
-  dialect; the maximum dialect and cipher selection remain negotiated by Samba
-  and the platform crypto policy. These settings protect the Samba client,
-  including computer GPO retrieval, and are not a domain-wide NTLM policy.
 - SSSD's AD provider uses Kerberos authentication and GSSAPI-protected LDAP. Its
-  access policy remains configured through domain_options, independently of
-  Samba computer policy application.
+  access policy remains configured through domain_options.
 - The default AD access provider enforces GPO access rules. Successful identity
   lookup alone does not grant login or sudo privileges.
+- On Red Hat systems, authselect enables without-nullok and with-faillock by
+  default. These remove pam_unix's empty-password allowance and enable PAM
+  failure lockouts. Lockout thresholds and duration follow
+  /etc/security/faillock.conf and distribution defaults; the role does not
+  manage that file. Coordinate local lockouts with AD policy; local_users_only
+  can restrict faillock to local accounts.
 - Reserve centrally assigned RFC2307 UID/GID values against local accounts and
   system IDs.
 - Machine credentials and their backups need restricted access. The role
-  protects the Samba private directory with mode 0700 and SSSD configuration
-  with mode 0640 for root and the native service group. Protect the machine
-  keytab, Samba secrets and SSSD credential cache when backing up or restoring
-  the host.
-- Computer GPOs can change privileged host settings. Restrict policy editing and
-  linking in AD; SMB encryption does not make SYSVOL a secret store. Offline
-  credential caching remains enabled for workstation logins; configure its
-  expiry through pam_options.offline_credentials_expiration according to local
-  policy.
-- File-server settings for guest shares, server signing/encryption, ACL/VFS
-  modules, recycle bins and full_audit do not apply to this login and GPO
-  client. No shares are configured and the role starts neither smbd nor winbind.
-  Authentication logging follows native PAM/SSSD facilities; collection and
+  protects SSSD configuration with mode 0640 for root and the native service
+  group. Protect the machine keytab and SSSD credential cache when backing up or
+  restoring the host.
+- Offline credential caching remains enabled for workstation logins; configure
+  its expiry through pam_options.offline_credentials_expiration according to
+  local policy.
+- Authentication logging follows native PAM/SSSD facilities; collection and
   retention, firewalls, storage encryption, DNS and time synchronization remain
   host or site responsibilities.
 
@@ -494,9 +358,43 @@ automatic refresh is enabled.
 - Native option values are scalars; provide SSSD lists as comma-separated
   strings. Dictionaries follow normal Ansible variable replacement semantics;
   include desired defaults when replacing a dictionary.
+- samba_ad_sssd_authselect_features selects additional features of the native
+  Red Hat sssd profile. An override replaces the list; include without-nullok
+  and with-faillock to retain the defaults. An empty list disables these
+  additional features. Home creation remains controlled by
+  samba_ad_sssd_mkhomedir, which adds or removes with-mkhomedir independently.
+  These authselect flags do not affect Debian/Ubuntu or openSUSE PAM
+  configuration.
+- Check authselect list-features sssd and authselect requirements sssd with the
+  desired feature names on the target. Available features depend on the
+  installed profile. The feature list selects PAM/NSS integration; optional
+  modules, hardware enrollment and supporting services require separate
+  provisioning.
+- with-fingerprint needs pam_fprintd and an enrolled fingerprint reader.
+  with-smartcard requires trusted certificates and SSSD certificate
+  authentication, including pam_options.pam_cert_auth=true;
+  with-smartcard-required enforces smartcard authentication and
+  with-smartcard-lock-on-removal adds desktop locking when a card is removed.
+  with-gssapi requires pam_sss_gss and allowed pam_options.pam_gssapi_services.
+- with-pam-u2f enables U2F authentication and with-pam-u2f-2fa enables it as a
+  second factor. Both need pam_u2f and enrolled keys. without-pam-u2f-nouserok
+  makes enrollment mandatory with the second-factor feature, including for root.
+  with-pam-gnome-keyring needs the GNOME keyring PAM module and session
+  integration.
+- with-files-access-provider subjects local regular users to SSSD access checks
+  and requires a suitable SSSD local-user domain outside this role's AD
+  configuration. with-pwhistory enables local password history; it does not
+  configure AD password policy.
+- with-sudo adds SSSD as a sudo rule source; it requires a configured sudo
+  provider, responder and directory rules. with-subid adds SSSD as a
+  subordinate-ID source and needs a compatible provider. These flags alone do
+  not configure either service. with-libvirt requires libvirt NSS modules for
+  guest hostname resolution.
+- with-silent-lastlog suppresses the last-login notice;
+  without-lastlog-showfailed suppresses the failed-login count. Both depend on
+  support in the installed authselect profile.
 - The role owns domains, services, id_provider, auth_provider, ad_domain,
-  krb5_realm, ad_hostname, both keytab paths,
-  ad_update_samba_machine_account_password=true, and the two mapping booleans.
+  krb5_realm, ad_hostname, both keytab paths, and the two mapping booleans.
   Other native options remain configurable.
 - Existing /etc/sssd/conf.d snippets are included in validation and preserved.
   They must not override the role-owned identity settings.
@@ -514,40 +412,11 @@ automatic refresh is enabled.
   SRV responses with Misformatted DNS reply. Automatic discovery requires DNS
   responses accepted by the installed resolver. No DNS parser or security policy
   is bypassed by the role.
-- Linux computer GPOs use oddjob-gpupdate on Fedora and openSUSE, and
-  samba-gpupdate directly on AlmaLinux, Debian and Ubuntu. AlmaLinux standard
-  repositories do not provide oddjob-gpupdate. The role does not enable or start
-  smbd or winbind. On openSUSE, native GPO package dependencies include Samba
-  server binaries; no shares are configured.
-- SSSD ad_gpo_access_control evaluates login access rights independently of the
-  Samba Linux policy client. The role does not configure a PAM hook for user GPO
-  execution at login.
-- Computer policies are applied after relevant package, configuration or join
-  changes by default.
-- Set samba_ad_sssd_gpo_refresh_enabled=false to suppress automatic application
-  during Ansible runs. Client packages, configuration, and machine credential
-  synchronization remain available. Manual refresh uses systemctl start
-  samba-ad-sssd-gpupdate.service. Disabling refresh does not undo already
-  applied policies.
-- Samba GPO retrieval requires secrets.tdb. After the SSSD join,
-  jomrr.samba.samba_join_member initializes it and synchronizes the SSSD keytab
-  through Samba's native sync machine password to keytab setting. SSSD keeps
-  both stores synchronized during subsequent password renewals through adcli
-  --add-samba-data. Initial GPO setup on an existing SSSD client therefore needs
-  the join credential again. force_join also refreshes the Samba credentials.
-- Initializing secrets.tdb with adcli update --add-samba-data alone fails with
-  some current Debian/Ubuntu package combinations. The role uses the native
-  Samba join module for initialization; normal SSSD password renewal works once
-  the Samba machine credentials exist.
-- Samba uses a writable tdb fallback range of 65536-69999 and the ad backend
-  with schema_mode=rfc2307 and range 70000-99999 for gpo_workgroup. Override
-  these through samba_ad_sssd_idmap_default_range and samba_ad_sssd_idmap_range.
-  The ranges must be disjoint; ad cannot serve as the writable wildcard backend.
-- Samba's ad range filters existing RFC2307 IDs and does not renumber them.
-  These idmap settings belong to the Samba client configuration; NSS and PAM use
-  SSSD without Winbind. SSSD identity limits can be configured separately with
-  domain_options.min_id and max_id; its autorid_compat allocation uses
-  ldap_idmap_range_*.
+- SSSD ad_gpo_access_control evaluates AD login access rights. Applying other
+  Linux policies through gpupdate is outside the current role scope. Login
+  integration is deferred until authselect 1.8.0 with its native with-gpupdate
+  feature and the required oddjob-gpupdate components are available on the
+  target platforms.
 
 ## Supported Platforms
 
@@ -596,6 +465,7 @@ samba_ad_sssd_domain_options:
 samba_ad_sssd_pam_options:
   offline_credentials_expiration: 7
 samba_ad_sssd_authselect_features:
+  - without-nullok
   - with-faillock
 ```
 
@@ -637,25 +507,14 @@ samba_ad_sssd_domain_options:
   default_shell: /bin/bash
 ```
 
-### Computer policies with manual refresh
-
-Keep Linux GPO support while applying computer policies manually.
-
-```yaml
-samba_ad_sssd_gpo_workgroup: EXAMPLE
-samba_ad_sssd_gpo_refresh_enabled: false
-```
-
 ## References
 
+- [authselect SSSD features](https://github.com/authselect/authselect/blob/master/profiles/sssd/README)
+- [authselect feature requirements](https://github.com/authselect/authselect/blob/master/profiles/sssd/REQUIREMENTS)
+- [PAM lockout configuration](https://github.com/linux-pam/linux-pam/blob/master/modules/pam_faillock/faillock.conf.5.xml)
 - [MIT Kerberos configuration](https://web.mit.edu/kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html)
-- [Samba client security options](https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html#CLIENTSMBENCRYPT)
 - [SSSD AD provider manual](https://github.com/SSSD/sssd/blob/master/src/man/sssd-ad.5.xml)
-- [Samba RFC2307 AD backend and fallback range](https://www.samba.org/samba/docs/current/man-html/idmap_ad.8.html)
-- [Samba Linux group policy client](https://github.com/samba-team/samba/blob/master/source4/scripting/bin/samba-gpupdate)
-- [Fedora oddjob-gpupdate](https://packages.fedoraproject.org/pkgs/oddjob-gpupdate/oddjob-gpupdate/index.html)
-- [openSUSE oddjob-gpupdate](https://github.com/openSUSE/oddjob-gpupdate)
-- [SSSD machine password renewal](https://github.com/SSSD/sssd/blob/master/src/providers/ad/ad_machine_pw_renewal.c)
+- [authselect 1.8.0 login integration](https://github.com/authselect/authselect/blob/1.8.0/profiles/sssd/system-auth)
 - [SSSD enumeration lifecycle](https://sssd.io/release-notes/sssd-2.12.0.html)
 - [SSSD AD provider](https://sssd.io/docs/ad/ad-provider.html)
 - [SSSD ID mapping](https://github.com/SSSD/sssd/blob/master/src/man/include/ldap_id_mapping.xml)

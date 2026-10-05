@@ -20,22 +20,14 @@ provisioner:
       display_ok_hosts: false
       display_skipped_hosts: false
       show_task_path_on_failure: true
-    ssh_connection:
+    connection:
       pipelining: true
-  log: true
-  playbooks:
-    prepare: "../resources/playbooks/prepare.yml"
-    converge: "../resources/playbooks/converge.yml"
-    verify: "../resources/playbooks/verify.yml"
-    side_effect: "../resources/playbooks/side_effect.yml"
-  connection_options:
-    ansible_user: "molecule"
   inventory:
     group_vars:
       all:
+        ansible_podman_mount_detection: false
         samba_ad_sssd_id_mapping: "rfc2307"
         samba_ad_sssd_realm: "AD.SSSD.TEST"
-        samba_ad_sssd_gpo_workgroup: "SSSDTEST"
         samba_ad_sssd_server: "dc-sssd.ad.sssd.test"
         samba_ad_sssd_join_password: "Molecule-Only-Adm1n!"
         __samba_ad_sssd_test_password: "Molecule-Only-Us3r!"
@@ -66,6 +58,14 @@ provisioner:
           ldap_idmap_range_size: 10000
           ad_server: "dc-sssd.ad.sssd.test"
           krb5_server: "dc-sssd.ad.sssd.test"
+  log: true
+  playbooks:
+    prepare: "../resources/playbooks/prepare.yml"
+    converge: "../resources/playbooks/converge.yml"
+    verify: "../resources/playbooks/verify.yml"
+    side_effect: "../resources/playbooks/side_effect.yml"
+  connection_options:
+    ansible_user: "molecule"
 verifier:
   name: "ansible"
 scenario:
@@ -103,8 +103,6 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"
   - name: "sas-debian"
@@ -115,8 +113,6 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"
   - name: "sas-fedora"
@@ -127,8 +123,6 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"
   - name: "sas-leap"
@@ -139,8 +133,6 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"
   - name: "sas-suse"
@@ -151,8 +143,6 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"
   - name: "sas-ubuntu"
@@ -163,8 +153,6 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"
   - name: "sas-autorid"
@@ -175,7 +163,5 @@ platforms:
     systemd: "true"
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
-    extra_opts:
-      - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
       - "samba_ad_sssd_members"

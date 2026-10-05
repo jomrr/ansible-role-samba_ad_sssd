@@ -22,9 +22,7 @@
     group: root
     mode: '0644'
     backup: true
-  notify:
-    - restart sssd
-    - apply computer policies
+  notify: restart sssd
 
 - name: SAMBA_AD_SSSD | Create SSSD configuration directories
   become: true

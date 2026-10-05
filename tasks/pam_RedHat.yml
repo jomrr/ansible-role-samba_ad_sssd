@@ -2,6 +2,15 @@
 # role: samba_ad_sssd
 # file: tasks/pam_RedHat.yml
 
+- name: SAMBA_AD_SSSD | Enable the native home directory broker
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    name: oddjobd
+    enabled: true
+    state: started
+  when: samba_ad_sssd_mkhomedir
+
 - name: SAMBA_AD_SSSD | Read the native authentication profile
   become: true
   become_user: root
