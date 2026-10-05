@@ -1,5 +1,5 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: .github/workflows/main.yml
 
 name: main full gate
@@ -85,27 +85,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: samba_ad_sssd-almalinux-latest
+          - name: sssd-almalinux-latest
             uns: jomrr
             img: almalinux
             tag: latest
-          - name: samba_ad_sssd-debian-latest
+          - name: sssd-debian-latest
             uns: jomrr
             img: debian
             tag: latest
-          - name: samba_ad_sssd-fedora-latest
+          - name: sssd-fedora-latest
             uns: jomrr
             img: fedora
             tag: latest
-          - name: samba_ad_sssd-opensuse-leap-latest
+          - name: sssd-opensuse-leap-latest
             uns: jomrr
             img: opensuse-leap
             tag: latest
-          - name: samba_ad_sssd-opensuse-tumbleweed-latest
+          - name: sssd-opensuse-tumbleweed-latest
             uns: jomrr
             img: opensuse-tumbleweed
             tag: latest
-          - name: samba_ad_sssd-ubuntu-latest
+          - name: sssd-ubuntu-latest
             uns: jomrr
             img: ubuntu
             tag: latest

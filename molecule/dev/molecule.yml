@@ -1,12 +1,12 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: molecule/dev/molecule.yml
 
 dependency:
   name: "galaxy"
   options:
     requirements-file: "${MOLECULE_PROJECT_DIRECTORY}/collections.yml"
-    role-file: "${MOLECULE_PROJECT_DIRECTORY}/collections.yml"
+    role-file: "${MOLECULE_PROJECT_DIRECTORY}/requirements.yml"
 driver:
   name: "podman"
 provisioner:
@@ -26,14 +26,15 @@ provisioner:
     group_vars:
       all:
         ansible_podman_mount_detection: false
-        samba_ad_sssd_id_mapping: "rfc2307"
-        samba_ad_sssd_realm: "AD.SSSD.TEST"
-        samba_ad_sssd_server: "dc-sssd.ad.sssd.test"
-        samba_ad_sssd_join_password: "Molecule-Only-Adm1n!"
-        __samba_ad_sssd_test_password: "Molecule-Only-Us3r!"
-        samba_ad_sssd_host_fqdn: "{{ inventory_hostname }}.ad.sssd.test"
-        samba_ad_sssd_authselect_force: true
-        samba_ad_sssd_domain_options:
+        sssd_id_mapping: "rfc2307"
+        sssd_keytab: "/etc/krb5.keytab"
+        sssd_realm: "AD.SSSD.TEST"
+        sssd_server: "dc-sssd.ad.sssd.test"
+        sssd_join_password: "Molecule-Only-Adm1n!"
+        __sssd_test_password: "Molecule-Only-Us3r!"
+        sssd_host_fqdn: "{{ inventory_hostname }}.ad.sssd.test"
+        pam_authselect_force: true
+        sssd_domain_options:
           access_provider: "ad"
           ad_gpo_access_control: "enforcing"
           enumerate: false
@@ -45,8 +46,9 @@ provisioner:
           krb5_server: "dc-sssd.ad.sssd.test"
     host_vars:
       sas-autorid:
-        samba_ad_sssd_id_mapping: "autorid_compat"
-        samba_ad_sssd_domain_options:
+        sssd_keytab: "/etc/sssd-test.keytab"
+        sssd_id_mapping: "autorid_compat"
+        sssd_domain_options:
           access_provider: "ad"
           ad_gpo_access_control: "enforcing"
           enumerate: false
@@ -94,7 +96,7 @@ platforms:
     extra_opts:
       - "--tmpfs=/var/lib/samba:rw,size=1g,mode=0755"
     groups:
-      - "samba_ad_sssd_dc"
+      - "sssd_dc"
   - name: "sas-alma"
     hostname: "sas-alma"
     image: "docker.io/jomrr/molecule-almalinux:latest"
@@ -104,7 +106,7 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"
   - name: "sas-debian"
     hostname: "sas-debian"
     image: "docker.io/jomrr/molecule-debian:latest"
@@ -114,7 +116,7 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"
   - name: "sas-fedora"
     hostname: "sas-fedora"
     image: "docker.io/jomrr/molecule-fedora:latest"
@@ -124,7 +126,7 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"
   - name: "sas-leap"
     hostname: "sas-leap"
     image: "docker.io/jomrr/molecule-opensuse-leap:latest"
@@ -134,7 +136,7 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"
   - name: "sas-suse"
     hostname: "sas-suse"
     image: "docker.io/jomrr/molecule-opensuse-tumbleweed:latest"
@@ -144,7 +146,7 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"
   - name: "sas-ubuntu"
     hostname: "sas-ubuntu"
     image: "docker.io/jomrr/molecule-ubuntu:latest"
@@ -154,7 +156,7 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"
   - name: "sas-autorid"
     hostname: "sas-autorid"
     image: "docker.io/jomrr/molecule-debian:latest"
@@ -164,4 +166,4 @@ platforms:
     privileged: true
     network: "sas-${MOLECULE_SCENARIO_NAME}"
     groups:
-      - "samba_ad_sssd_members"
+      - "sssd_members"

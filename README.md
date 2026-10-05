@@ -1,13 +1,13 @@
-# Ansible Role: samba_ad_sssd
+# Ansible Role: sssd
 
-![GitHub](https://img.shields.io/github/license/jomrr/ansible-role-samba_ad_sssd)
-![GitHub last commit](https://img.shields.io/github/last-commit/jomrr/ansible-role-samba_ad_sssd)
-![GitHub issues](https://img.shields.io/github/issues-raw/jomrr/ansible-role-samba_ad_sssd)
-[![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/dev.yml?branch=dev&label=dev)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/dev.yml?query=branch%3Adev)
-[![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-samba_ad_sssd/main.yml?branch=main&label=main)](https://github.com/jomrr/ansible-role-samba_ad_sssd/actions/workflows/main.yml?query=branch%3Amain)
+![GitHub](https://img.shields.io/github/license/jomrr/ansible-role-sssd)
+![GitHub last commit](https://img.shields.io/github/last-commit/jomrr/ansible-role-sssd)
+![GitHub issues](https://img.shields.io/github/issues-raw/jomrr/ansible-role-sssd)
+[![dev](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-sssd/dev.yml?branch=dev&label=dev)](https://github.com/jomrr/ansible-role-sssd/actions/workflows/dev.yml?query=branch%3Adev)
+[![main](https://img.shields.io/github/actions/workflow/status/jomrr/ansible-role-sssd/main.yml?branch=main&label=main)](https://github.com/jomrr/ansible-role-sssd/actions/workflows/main.yml?query=branch%3Amain)
 
-Join Linux systems to Active Directory with SSSD, RFC2307 identities, and native
-PAM integration.
+Join Linux systems to Active Directory and configure SSSD with centrally
+assigned RFC2307 identities.
 
 ## Purpose
 
@@ -19,16 +19,18 @@ GPO login access rules through SSSD.
 
 ### Managed
 
-- AD join and machine keytab through jomrr.samba.samba_join_sssd (adcli).
-- System Kerberos configuration with the AD default realm, DNS KDC discovery,
-  domain mapping and machine keytab path.
-- SSSD configuration, NSS identity lookup, PAM authentication and optional home
-  creation.
-- Enabled and running SSSD, with oddjob on Red Hat systems for automatic home
-  creation.
+- AD join and machine keytab through adcli, with a local klist check for a
+  machine principal in the configured realm.
+- SSSD configuration, including its NSS and PAM responder options and AD access
+  policy.
+- Enabled and running SSSD.
 
 ### Not Managed
 
+- System Kerberos configuration; run jomrr.krb5 before this role.
+- System PAM stacks, passwd/group NSS selection and home creation; managed by
+  jomrr.pam.
+- LDAP and IPA identity providers. Only the AD provider is supported.
 - Samba file shares, smbd, winbind, and file ownership migrations.
 - DC provisioning, RFC2307 attribute allocation, DNS resolver setup, time
   synchronization, and host naming.
@@ -39,14 +41,15 @@ GPO login access rules through SSSD.
 
 ## Requirements
 
+- Run jomrr.krb5 before this role with krb5_realm matching sssd_realm and DNS
+  KDC discovery enabled.
+- Run jomrr.pam with pam_provider=sssd before this role to select native PAM and
+  NSS integration.
 - A stable host FQDN, working AD DNS discovery, synchronized time, and network
   reachability to the domain.
 - For RFC2307: users need uidNumber and gidNumber, groups need gidNumber;
   allocate these centrally and consistently. Provisioning the schema alone does
   not assign them.
-- Native PAM configuration must be managed by authselect (Red Hat),
-  pam-auth-update (Debian/Ubuntu), or pam-config (openSUSE). Set
-  authselect_force explicitly to adopt unmanaged Red Hat files.
 - Applications must use the system PAM stack. SSH password logins also require
   suitable sshd configuration managed outside this role.
 
@@ -58,17 +61,26 @@ collections:
     version: '>=12.0.0'
   - name: jomrr.samba
     version: '>=2.0.0'
+roles:
+  - name: jomrr.krb5
+    src: https://github.com/jomrr/ansible-role-krb5.git
+    scm: git
+    version: main
+  - name: jomrr.pam
+    src: https://github.com/jomrr/ansible-role-pam.git
+    scm: git
+    version: main
 ```
 
 ## Role Variables
 
-### `samba_ad_sssd_realm`
+### `sssd_realm`
 
 Type: `str`. Required: `true`.
 
 AD DNS domain and Kerberos realm; must remain stable after joining.
 
-### `samba_ad_sssd_join_username`
+### `sssd_join_username`
 
 Type: `str`. Required: `false`.
 
@@ -77,16 +89,16 @@ Account delegated permission to join computers to the domain.
 Default:
 
 ```yaml
-samba_ad_sssd_join_username: Administrator
+sssd_join_username: Administrator
 ```
 
-### `samba_ad_sssd_join_password`
+### `sssd_join_password`
 
 Type: `str`. Required: `false`.
 
 Join password from a secret store; needed for the initial join or forced rejoin.
 
-### `samba_ad_sssd_server`
+### `sssd_server`
 
 Type: `str`. Required: `false`.
 
@@ -96,10 +108,10 @@ selection uses domain_options.ad_server.
 Default:
 
 ```yaml
-samba_ad_sssd_server: ''
+sssd_server: ''
 ```
 
-### `samba_ad_sssd_computer_ou`
+### `sssd_computer_ou`
 
 Type: `str`. Required: `false`.
 
@@ -108,10 +120,10 @@ LDAP DN of the computer OU; empty uses the domain default.
 Default:
 
 ```yaml
-samba_ad_sssd_computer_ou: ''
+sssd_computer_ou: ''
 ```
 
-### `samba_ad_sssd_host_fqdn`
+### `sssd_host_fqdn`
 
 Type: `str`. Required: `false`.
 
@@ -120,23 +132,23 @@ Stable fully qualified machine hostname shared by adcli and SSSD.
 Default:
 
 ```yaml
-samba_ad_sssd_host_fqdn: '{{ ansible_facts.fqdn | lower }}'
+sssd_host_fqdn: '{{ ansible_facts.fqdn | lower }}'
 ```
 
-### `samba_ad_sssd_keytab`
+### `sssd_keytab`
 
 Type: `path`. Required: `false`.
 
-Machine keytab used by adcli, SSSD and the system Kerberos configuration; its
-parent directory must exist.
+Machine keytab used explicitly by adcli and SSSD; its parent directory must
+exist.
 
 Default:
 
 ```yaml
-samba_ad_sssd_keytab: /etc/krb5.keytab
+sssd_keytab: /etc/krb5.keytab
 ```
 
-### `samba_ad_sssd_force_join`
+### `sssd_force_join`
 
 Type: `bool`. Required: `false`.
 
@@ -145,10 +157,10 @@ Rejoin on every run; enable only for deliberate machine account repair.
 Default:
 
 ```yaml
-samba_ad_sssd_force_join: false
+sssd_force_join: false
 ```
 
-### `samba_ad_sssd_id_mapping`
+### `sssd_id_mapping`
 
 Type: `str`. Required: `false`.
 
@@ -158,10 +170,10 @@ algorithmic mapping with autorid compatibility.
 Default:
 
 ```yaml
-samba_ad_sssd_id_mapping: rfc2307
+sssd_id_mapping: rfc2307
 ```
 
-### `samba_ad_sssd_sssd_options`
+### `sssd_sssd_options`
 
 Type: `dict`. Required: `false`.
 
@@ -171,10 +183,10 @@ are role-owned.
 Default:
 
 ```yaml
-samba_ad_sssd_sssd_options: {}
+sssd_sssd_options: {}
 ```
 
-### `samba_ad_sssd_domain_options`
+### `sssd_domain_options`
 
 Type: `dict`. Required: `false`.
 
@@ -185,7 +197,7 @@ precedence.
 Default:
 
 ```yaml
-samba_ad_sssd_domain_options:
+sssd_domain_options:
   access_provider: ad
   ad_gpo_access_control: enforcing
   enumerate: false
@@ -195,7 +207,7 @@ samba_ad_sssd_domain_options:
   default_shell: /bin/bash
 ```
 
-### `samba_ad_sssd_nss_options`
+### `sssd_nss_options`
 
 Type: `dict`. Required: `false`.
 
@@ -205,10 +217,10 @@ filter_groups.
 Default:
 
 ```yaml
-samba_ad_sssd_nss_options: {}
+sssd_nss_options: {}
 ```
 
-### `samba_ad_sssd_pam_options`
+### `sssd_pam_options`
 
 Type: `dict`. Required: `false`.
 
@@ -218,10 +230,10 @@ offline_credentials_expiration.
 Default:
 
 ```yaml
-samba_ad_sssd_pam_options: {}
+sssd_pam_options: {}
 ```
 
-### `samba_ad_sssd_config_no_log`
+### `sssd_config_no_log`
 
 Type: `bool`. Required: `false`.
 
@@ -230,70 +242,25 @@ Redact template output and diffs when native SSSD options contain secrets.
 Default:
 
 ```yaml
-samba_ad_sssd_config_no_log: false
-```
-
-### `samba_ad_sssd_mkhomedir`
-
-Type: `bool`. Required: `false`.
-
-Enable native PAM home directory creation on login; disabling removes the
-managed PAM feature and preserves homes.
-
-Default:
-
-```yaml
-samba_ad_sssd_mkhomedir: true
-```
-
-### `samba_ad_sssd_authselect_features`
-
-Type: `list`. Required: `false`.
-
-Additional features of the Red Hat sssd profile; with-mkhomedir is controlled by
-mkhomedir.
-
-Default:
-
-```yaml
-samba_ad_sssd_authselect_features:
-  - without-nullok
-  - with-faillock
-```
-
-### `samba_ad_sssd_authselect_force`
-
-Type: `bool`. Required: `false`.
-
-Allow authselect to replace existing unmanaged PAM/NSS files using its native
-backup mechanism.
-
-Default:
-
-```yaml
-samba_ad_sssd_authselect_force: false
+sssd_config_no_log: false
 ```
 
 ## Managed Files
 
-- `/etc/krb5.conf (complete file, mode 0644, root-owned, previous version backed
-  up), with /etc/krb5.conf.d snippets retained.`
 - `/etc/sssd/sssd.conf (0640, root-owned, native SSSD service group, native
   validation and backup).`
-- `/etc/nsswitch.conf and native PAM profile selection; PAM files are generated
-  by distribution tools.`
 
 ## Check Mode
 
-Supported on an already prepared host; adcli reports a pending join without
-performing it.
+Supported on an already prepared host; klist reads the keytab in check mode and
+the adcli join task is skipped.
 
 - A first run in check mode cannot install required tools or create a usable
   machine keytab. Run a normal converge before checking a fresh host.
 
 ## Service Behavior
 
-Configuration and keytab changes restart SSSD before native PAM integration.
+SSSD configuration and keytab changes restart SSSD.
 
 ### Handlers
 
@@ -309,12 +276,6 @@ Configuration and keytab changes restart SSSD before native PAM integration.
   access policy remains configured through domain_options.
 - The default AD access provider enforces GPO access rules. Successful identity
   lookup alone does not grant login or sudo privileges.
-- On Red Hat systems, authselect enables without-nullok and with-faillock by
-  default. These remove pam_unix's empty-password allowance and enable PAM
-  failure lockouts. Lockout thresholds and duration follow
-  /etc/security/faillock.conf and distribution defaults; the role does not
-  manage that file. Coordinate local lockouts with AD policy; local_users_only
-  can restrict faillock to local accounts.
 - Reserve centrally assigned RFC2307 UID/GID values against local accounts and
   system IDs.
 - Machine credentials and their backups need restricted access. The role
@@ -330,20 +291,16 @@ Configuration and keytab changes restart SSSD before native PAM integration.
 
 ## Operational Notes
 
-- The role writes /etc/krb5.conf before joining. It sets the default realm and
-  keytab from samba_ad_sssd_realm and samba_ad_sssd_keytab, discovers KDCs
-  through DNS and maps the AD DNS domain and its subdomains to the realm. DNS
-  realm lookup and reverse/canonical hostname rewriting are disabled. Existing
-  settings in the main file are replaced; retain site-specific configuration in
-  /etc/krb5.conf.d without conflicting with these settings.
-- Kerberos credential caches use FILE on Debian/Ubuntu and persistent KEYRING on
-  Red Hat/openSUSE, matching samba_ad_member. Native Kerberos libraries and
-  distribution crypto-policy snippets determine encryption types. There is no
-  standalone Kerberos candidate-file validator in the installed client tools;
-  functional joins and authentication are covered by the integration scenario.
-- samba_ad_sssd_id_mapping=rfc2307 sets id_provider=ad and
-  ldap_id_mapping=false. autorid_compat sets ldap_id_mapping=true and
-  ldap_idmap_autorid_compat=true.
+- jomrr.krb5 owns /etc/krb5.conf and /etc/krb5.conf.d. This role sets
+  krb5_keytab, ldap_krb5_keytab and adcli's host-keytab explicitly from
+  sssd_keytab, independently of the library default keytab. Setting
+  krb5_default_keytab is therefore unnecessary for SSSD.
+- Native PAM and passwd/group NSS ownership belongs to jomrr.pam. Its
+  pam_mkhomedir, pam_authselect_features and pam_authselect_force variables
+  control native integration. sssd_pam_options and sssd_nss_options configure
+  SSSD responders.
+- sssd_id_mapping=rfc2307 sets id_provider=ad and ldap_id_mapping=false.
+  autorid_compat sets ldap_id_mapping=true and ldap_idmap_autorid_compat=true.
 - Autorid compatibility ignores RFC2307 IDs. Its domain allocation depends on
   discovery order and does not guarantee identical Winbind or cross-host IDs.
   Use domain_options.ldap_idmap_default_domain_sid to pin the main domain and
@@ -358,41 +315,6 @@ Configuration and keytab changes restart SSSD before native PAM integration.
 - Native option values are scalars; provide SSSD lists as comma-separated
   strings. Dictionaries follow normal Ansible variable replacement semantics;
   include desired defaults when replacing a dictionary.
-- samba_ad_sssd_authselect_features selects additional features of the native
-  Red Hat sssd profile. An override replaces the list; include without-nullok
-  and with-faillock to retain the defaults. An empty list disables these
-  additional features. Home creation remains controlled by
-  samba_ad_sssd_mkhomedir, which adds or removes with-mkhomedir independently.
-  These authselect flags do not affect Debian/Ubuntu or openSUSE PAM
-  configuration.
-- Check authselect list-features sssd and authselect requirements sssd with the
-  desired feature names on the target. Available features depend on the
-  installed profile. The feature list selects PAM/NSS integration; optional
-  modules, hardware enrollment and supporting services require separate
-  provisioning.
-- with-fingerprint needs pam_fprintd and an enrolled fingerprint reader.
-  with-smartcard requires trusted certificates and SSSD certificate
-  authentication, including pam_options.pam_cert_auth=true;
-  with-smartcard-required enforces smartcard authentication and
-  with-smartcard-lock-on-removal adds desktop locking when a card is removed.
-  with-gssapi requires pam_sss_gss and allowed pam_options.pam_gssapi_services.
-- with-pam-u2f enables U2F authentication and with-pam-u2f-2fa enables it as a
-  second factor. Both need pam_u2f and enrolled keys. without-pam-u2f-nouserok
-  makes enrollment mandatory with the second-factor feature, including for root.
-  with-pam-gnome-keyring needs the GNOME keyring PAM module and session
-  integration.
-- with-files-access-provider subjects local regular users to SSSD access checks
-  and requires a suitable SSSD local-user domain outside this role's AD
-  configuration. with-pwhistory enables local password history; it does not
-  configure AD password policy.
-- with-sudo adds SSSD as a sudo rule source; it requires a configured sudo
-  provider, responder and directory rules. with-subid adds SSSD as a
-  subordinate-ID source and needs a compatible provider. These flags alone do
-  not configure either service. with-libvirt requires libvirt NSS modules for
-  guest hostname resolution.
-- with-silent-lastlog suppresses the last-login notice;
-  without-lastlog-showfailed suppresses the failed-login count. Both depend on
-  support in the installed authselect profile.
 - The role owns domains, services, id_provider, auth_provider, ad_domain,
   krb5_realm, ad_hostname, both keytab paths, and the two mapping booleans.
   Other native options remain configurable.
@@ -401,8 +323,13 @@ Configuration and keytab changes restart SSSD before native PAM integration.
 - SSSD and winbind must not compete as identity providers for this domain. This
   role targets dedicated SSSD clients and does not migrate an existing winbind
   deployment.
-- Join idempotency is based on local machine principals in the keytab, not a
-  live trust test. Use force_join only for deliberate repair.
+- Join idempotency checks sssd_keytab with klist -k for a host/...@REALM or
+  NAME$@REALM machine principal. Realm matching is case-insensitive. A missing
+  keytab or absent machine principal triggers adcli join; an existing matching
+  principal skips it without contacting a DC. Use sssd_force_join only for
+  deliberate repair. sssd_join_password is needed only when a join runs.
+- jomrr.samba is used only by the Molecule AD controller fixture. Role tasks use
+  klist and adcli directly.
 - AD user/group enumeration is deprecated since SSSD 2.10 and its extended
   support was removed in 2.12. enumerate is passed through for builds that
   support it; full listings cannot be guaranteed on current distributions. Named
@@ -441,10 +368,14 @@ Use centrally assigned IDs and create homes at login.
   hosts: linux_clients
   gather_facts: true
   roles:
-    - role: jomrr.samba_ad_sssd
-      samba_ad_sssd_realm: AD.EXAMPLE.COM
-      samba_ad_sssd_join_password: "{{ vault_ad_join_password }}"
-      samba_ad_sssd_computer_ou: OU=Linux,DC=ad,DC=example,DC=com
+    - role: jomrr.krb5
+      krb5_realm: AD.EXAMPLE.COM
+    - role: jomrr.pam
+      pam_provider: sssd
+    - role: jomrr.sssd
+      sssd_realm: AD.EXAMPLE.COM
+      sssd_join_password: "{{ vault_ad_join_password }}"
+      sssd_computer_ou: OU=Linux,DC=ad,DC=example,DC=com
 ```
 
 ### Native SSSD options and short login names
@@ -452,9 +383,9 @@ Use centrally assigned IDs and create homes at login.
 Preserve the standard policies while customizing native options.
 
 ```yaml
-samba_ad_sssd_sssd_options:
+sssd_sssd_options:
   domain_resolution_order: ad.example.com
-samba_ad_sssd_domain_options:
+sssd_domain_options:
   access_provider: ad
   ad_gpo_access_control: enforcing
   enumerate: false
@@ -462,9 +393,9 @@ samba_ad_sssd_domain_options:
   use_fully_qualified_names: false
   fallback_homedir: /home/%d/%u
   default_shell: /bin/bash
-samba_ad_sssd_pam_options:
+sssd_pam_options:
   offline_credentials_expiration: 7
-samba_ad_sssd_authselect_features:
+pam_authselect_features:
   - without-nullok
   - with-faillock
 ```
@@ -474,8 +405,8 @@ samba_ad_sssd_authselect_features:
 Pin the primary domain SID; this does not promise matching Winbind IDs.
 
 ```yaml
-samba_ad_sssd_id_mapping: autorid_compat
-samba_ad_sssd_domain_options:
+sssd_id_mapping: autorid_compat
+sssd_domain_options:
   access_provider: ad
   ad_gpo_access_control: enforcing
   enumerate: false
@@ -495,7 +426,7 @@ Select runtime LDAP and Kerberos endpoints when DNS SRV discovery is unavailable
 Include these keys in the desired domain_options dictionary.
 
 ```yaml
-samba_ad_sssd_domain_options:
+sssd_domain_options:
   ad_server: dc1.ad.example.com, dc2.ad.example.com
   krb5_server: dc1.ad.example.com, dc2.ad.example.com
   access_provider: ad
@@ -509,16 +440,13 @@ samba_ad_sssd_domain_options:
 
 ## References
 
-- [authselect SSSD features](https://github.com/authselect/authselect/blob/master/profiles/sssd/README)
-- [authselect feature requirements](https://github.com/authselect/authselect/blob/master/profiles/sssd/REQUIREMENTS)
-- [PAM lockout configuration](https://github.com/linux-pam/linux-pam/blob/master/modules/pam_faillock/faillock.conf.5.xml)
 - [MIT Kerberos configuration](https://web.mit.edu/kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html)
 - [SSSD AD provider manual](https://github.com/SSSD/sssd/blob/master/src/man/sssd-ad.5.xml)
 - [authselect 1.8.0 login integration](https://github.com/authselect/authselect/blob/1.8.0/profiles/sssd/system-auth)
 - [SSSD enumeration lifecycle](https://sssd.io/release-notes/sssd-2.12.0.html)
 - [SSSD AD provider](https://sssd.io/docs/ad/ad-provider.html)
 - [SSSD ID mapping](https://github.com/SSSD/sssd/blob/master/src/man/include/ldap_id_mapping.xml)
-- [Samba collection](https://github.com/jomrr/ansible-collection-samba)
+- [adcli manual](https://www.freedesktop.org/software/realmd/adcli/adcli.html)
 
 ## Author
 

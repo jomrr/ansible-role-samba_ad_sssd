@@ -1,8 +1,8 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: handlers/main.yml
 
-- name: SAMBA_AD_SSSD | Restart SSSD
+- name: SSSD | Restart SSSD
   become: true
   become_user: root
   ansible.builtin.systemd_service:

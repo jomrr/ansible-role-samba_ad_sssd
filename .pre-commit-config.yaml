@@ -1,5 +1,5 @@
 ---
-# role: jomrr.samba_ad_sssd
+# role: jomrr.sssd
 # file: .pre-commit-config.yaml
 
 repos:

@@ -1,54 +1,72 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: tasks/main.yml
 
-- name: SAMBA_AD_SSSD | Load platform settings
-  ansible.builtin.include_vars: "{{ lookup('ansible.builtin.first_found', __samba_ad_sssd_platform_files) }}"
+- name: SSSD | Load platform settings
+  ansible.builtin.include_vars: "{{ lookup('ansible.builtin.first_found', __sssd_platform_files) }}"
   vars:
-    __samba_ad_sssd_platform_files:
+    __sssd_platform_files:
       files:
         - "{{ ansible_facts.os_family }}.yml"
       paths:
         - "{{ role_path }}/vars"
 
-- name: SAMBA_AD_SSSD | Install AD login components
+- name: SSSD | Install AD login components
   become: true
   become_user: root
   ansible.builtin.package:
-    name: "{{ __samba_ad_sssd_packages }}"
+    name: "{{ __sssd_packages }}"
     state: present
   environment:
     DEBIAN_FRONTEND: noninteractive
 
-- name: SAMBA_AD_SSSD | Configure domain identity
+- name: SSSD | Configure domain identity
   ansible.builtin.import_tasks: configure.yml
 
-- name: SAMBA_AD_SSSD | Join the Active Directory domain
+- name: SSSD | Read machine keytab principals
   become: true
   become_user: root
-  jomrr.samba.samba_join_sssd:
-    realm: "{{ samba_ad_sssd_realm | upper }}"
-    bind_username: "{{ samba_ad_sssd_join_username }}"
-    bind_password: "{{ samba_ad_sssd_join_password | default(omit) }}"
-    server: "{{ samba_ad_sssd_server }}"
-    computer_ou: "{{ samba_ad_sssd_computer_ou }}"
-    host_fqdn: "{{ samba_ad_sssd_host_fqdn }}"
-    keytab: "{{ samba_ad_sssd_keytab }}"
-    force: "{{ samba_ad_sssd_force_join }}"
-    state: present
+  ansible.builtin.command:
+    argv:
+      - klist
+      - -k
+      - '{{ sssd_keytab }}'
+  register: __sssd_keytab_principals
+  check_mode: false
+  changed_when: false
+  failed_when: __sssd_keytab_principals.rc not in [0, 1]
+
+- name: SSSD | Join the Active Directory domain
+  become: true
+  become_user: root
+  ansible.builtin.command:
+    argv: >-
+      {{ ['adcli', 'join',
+          '--domain=' ~ (sssd_realm | upper),
+          '--login-user=' ~ sssd_join_username,
+          '--host-keytab=' ~ sssd_keytab,
+          '--stdin-password']
+         + (['--domain-controller=' ~ sssd_server] if sssd_server else [])
+         + (['--host-fqdn=' ~ sssd_host_fqdn] if sssd_host_fqdn else [])
+         + (['--domain-ou=' ~ sssd_computer_ou] if sssd_computer_ou else []) }}
+    stdin: '{{ sssd_join_password }}'
+    expand_argument_vars: false
+  changed_when: true
+  when: >-
+    sssd_force_join or __sssd_keytab_principals.rc == 1 or
+    __sssd_keytab_principals.stdout.split()
+    | select('match', '(?i)^(?:host(?:/.*)?|[^/]+\\$)@' ~ (sssd_realm | regex_escape) ~ '$')
+    | list | length == 0
   no_log: true
   notify: restart sssd
 
-- name: SAMBA_AD_SSSD | Activate domain identity
+- name: SSSD | Activate domain identity
   ansible.builtin.meta: flush_handlers
 
-- name: SAMBA_AD_SSSD | Enable and start SSSD
+- name: SSSD | Enable and start SSSD
   become: true
   become_user: root
   ansible.builtin.systemd_service:
     name: sssd
     enabled: true
     state: started
-
-- name: SAMBA_AD_SSSD | Integrate native system authentication
-  ansible.builtin.include_tasks: "pam_{{ ansible_facts.os_family }}.yml"

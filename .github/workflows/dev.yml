@@ -1,5 +1,5 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: .github/workflows/dev.yml
 
 name: dev push smoke

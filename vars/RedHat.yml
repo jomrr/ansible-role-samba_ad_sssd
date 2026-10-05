@@ -1,18 +1,10 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: vars/RedHat.yml
 
-__samba_ad_sssd_packages:
+__sssd_packages:
   - adcli
   - sssd-ad
-  - sssd-client
   - sssd-tools
-  - authselect
-  - oddjob-mkhomedir
-  - krb5-workstation
-__samba_ad_sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
-__samba_ad_sssd_config_group: sssd
-__samba_ad_sssd_krb5_ccache: 'KEYRING:persistent:%{uid}'
-__samba_ad_sssd_authselect_profile: >-
-  {{ ['sssd'] + (samba_ad_sssd_authselect_features | difference(['with-mkhomedir'])) +
-     (samba_ad_sssd_mkhomedir | ternary(['with-mkhomedir'], [])) }}
+__sssd_validate: /usr/sbin/sssctl config-check --config %s --snippet /etc/sssd/conf.d
+__sssd_config_group: sssd

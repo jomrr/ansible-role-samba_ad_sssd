@@ -1,41 +1,50 @@
 ---
-# role: samba_ad_sssd
+# role: sssd
 # file: molecule/resources/playbooks/verify.yml
 
-- name: SAMBA_AD_SSSD | Verify domain identity and native PAM login
-  hosts: samba_ad_sssd_members
+- name: SSSD | Verify domain identity and native PAM login
+  hosts: sssd_members
   gather_facts: true
   tasks:
 
-    - name: SAMBA_AD_SSSD | Check machine trust using the keytab
+    - name: SSSD | Check machine trust using the keytab
       become: true
       become_user: root
-      ansible.builtin.command: adcli testjoin --domain=ad.sssd.test
+      ansible.builtin.command:
+        argv:
+          - kinit
+          - -k
+          - -t
+          - '{{ sssd_keytab }}'
+          - -c
+          - MEMORY:sssd-molecule-machine-trust
+          - '{{ inventory_hostname | upper }}$@{{ sssd_realm | upper }}'
+        expand_argument_vars: false
       changed_when: false
 
-    - name: SAMBA_AD_SSSD | Resolve the domain user through NSS
+    - name: SSSD | Resolve the domain user through NSS
       ansible.builtin.getent:
         database: passwd
         key: writer@ad.sssd.test
 
-    - name: SAMBA_AD_SSSD | Verify centrally assigned RFC2307 identity
+    - name: SSSD | Verify centrally assigned RFC2307 identity
       ansible.builtin.assert:
         that:
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][1] == '21001'
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][2] == '21000'
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][4] == '/home/writer'
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][5] == '/bin/bash'
-      when: samba_ad_sssd_id_mapping == 'rfc2307'
+      when: sssd_id_mapping == 'rfc2307'
 
-    - name: SAMBA_AD_SSSD | Verify algorithmic identity lies in the configured range
+    - name: SSSD | Verify algorithmic identity lies in the configured range
       ansible.builtin.assert:
         that:
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][1] | int >= 10000
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][1] | int < 60000
           - ansible_facts.getent_passwd['writer@ad.sssd.test'][1] != '21001'
-      when: samba_ad_sssd_id_mapping == 'autorid_compat'
+      when: sssd_id_mapping == 'autorid_compat'
 
-    - name: SAMBA_AD_SSSD | Authenticate through the native login PAM stack
+    - name: SSSD | Authenticate through the native login PAM stack
       become: true
       become_user: root
       ansible.builtin.command:
@@ -45,16 +54,16 @@
           - --action=auth
           - --service=login
           - writer@ad.sssd.test
-        stdin: '{{ __samba_ad_sssd_test_password }}'
+        stdin: '{{ __sssd_test_password }}'
       environment:
         LC_ALL: C
-      register: __samba_ad_sssd_authentication
+      register: __sssd_authentication
       changed_when: false
-      failed_when: '__samba_ad_sssd_authentication.rc != 0 or ''pam_authenticate for user [writer@ad.sssd.test]:
-        Success'' not in __samba_ad_sssd_authentication.stderr'
+      failed_when: '__sssd_authentication.rc != 0 or ''pam_authenticate for user [writer@ad.sssd.test]:
+        Success'' not in __sssd_authentication.stderr'
       no_log: true
 
-    - name: SAMBA_AD_SSSD | Reject an incorrect domain password through PAM
+    - name: SSSD | Reject an incorrect domain password through PAM
       become: true
       become_user: root
       ansible.builtin.command:
@@ -67,26 +76,26 @@
         stdin: Incorrect-Molecule-Password!
       environment:
         LC_ALL: C
-      register: __samba_ad_sssd_rejection
+      register: __sssd_rejection
       changed_when: false
-      failed_when: '''Authentication failure'' not in __samba_ad_sssd_rejection.stderr'
+      failed_when: '''Authentication failure'' not in __sssd_rejection.stderr'
       no_log: true
 
-    - name: SAMBA_AD_SSSD | Verify account authorization and open a login session
+    - name: SSSD | Verify account authorization and open a login session
       become: true
       become_user: root
       ansible.builtin.command:
         argv:
           - sssctl
           - user-checks
-          - --action={{ __samba_ad_sssd_action.action }}
+          - --action={{ __sssd_action.action }}
           - --service=login
           - writer@ad.sssd.test
       environment:
         LC_ALL: C
-      register: __samba_ad_sssd_session
+      register: __sssd_session
       changed_when: false
-      failed_when: __samba_ad_sssd_session.rc != 0 or __samba_ad_sssd_action.result not in __samba_ad_sssd_session.stderr
+      failed_when: __sssd_session.rc != 0 or __sssd_action.result not in __sssd_session.stderr
       loop:
         - action: acct
           result: 'pam_acct_mgmt: Success'
@@ -95,19 +104,19 @@
         - action: clos
           result: 'pam_close_session: Success'
       loop_control:
-        loop_var: __samba_ad_sssd_action
-        label: '{{ __samba_ad_sssd_action.action }}'
+        loop_var: __sssd_action
+        label: '{{ __sssd_action.action }}'
 
-    - name: SAMBA_AD_SSSD | Read the home created by the login session
+    - name: SSSD | Read the home created by the login session
       become: true
       become_user: root
       ansible.builtin.stat:
         path: '{{ ansible_facts.getent_passwd[''writer@ad.sssd.test''][4] }}'
-      register: __samba_ad_sssd_home
+      register: __sssd_home
 
-    - name: SAMBA_AD_SSSD | Verify the home belongs to the mapped domain identity
+    - name: SSSD | Verify the home belongs to the mapped domain identity
       ansible.builtin.assert:
         that:
-          - __samba_ad_sssd_home.stat.isdir
-          - __samba_ad_sssd_home.stat.uid == ansible_facts.getent_passwd['writer@ad.sssd.test'][1] | int
-          - __samba_ad_sssd_home.stat.gid == ansible_facts.getent_passwd['writer@ad.sssd.test'][2] | int
+          - __sssd_home.stat.isdir
+          - __sssd_home.stat.uid == ansible_facts.getent_passwd['writer@ad.sssd.test'][1] | int
+          - __sssd_home.stat.gid == ansible_facts.getent_passwd['writer@ad.sssd.test'][2] | int
